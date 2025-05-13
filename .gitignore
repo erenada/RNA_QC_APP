@@ -1,0 +1,65 @@
+# History files
+.Rhistory
+.Rapp.history
+
+# Session Data files
+.RData
+
+# User-specific files
+.Ruserdata
+
+# R Project files (if used with RStudio)
+*.Rproj
+
+# Rmarkdown / Knitr cache and intermediate files
+*_cache/
+/cache/
+*.utf8.md
+*.knit.md
+
+# R Packages (if compiled in project)
+*.Rcheck/
+*.Rinst/
+
+# Shiny specific
+rsconnect/
+.shiny_app_error.log
+
+# macOS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows specific
+Thumbs.db
+ehthumbs.db
+
+# IDE specific files
+.idea/ # JetBrains IDEs
+.vscode/ # VSCode
+
+# Temporary files
+*~
+*.swp
+*.swo
+
+# Large data files (consider Git LFS for these if they need to be tracked)
+# *.csv
+# *.tsv
+# *.txt
+# *.rda
+# *.rds
+# *.RData
+# *.bam
+# *.fastq
+# *.fq
+
+# Log files
+*.log
+
+# Outputs (unless specifically intended to be in version control)
+# output/
+# results/
+
+# External repositories/directories not part of this project
+mastering-shiny/ 

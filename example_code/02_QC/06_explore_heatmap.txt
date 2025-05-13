@@ -1,0 +1,409 @@
+# scripts/06_explore_heatmap.R
+#
+# Author: Eren Ada, PhD
+# Date: 05/10/2025
+#
+# Description: 
+# This script identifies the top N most variable genes from transformed RNA-seq data
+# (RLOG or VST) and visualizes their expression patterns across samples using an
+# annotated heatmap. The script uses transformed data from 03_data_transformation.R.
+#
+# Input files:
+# - A list object containing VST and RLOG transformed data:
+#   results/eda/normalized_counts.rds (output from 03_data_transformation.R)
+#   This list has elements $rlog and $vst
+#
+# Output files:
+# - Heatmap of top variable genes (results/eda/heatmaps/top_variable_genes_heatmap.pdf)
+# - Heatmap of top variable genes (results/eda/heatmaps/top_variable_genes_heatmap.png)
+# - List of top N variable genes (results/eda/heatmaps/top_variable_genes_list.csv)
+# - Log file (logs/06_top_variable_genes_heatmap_log.txt)
+
+# ========================= #
+# 0. Setup and Preparation #
+# ========================= #
+
+# Load required packages
+suppressPackageStartupMessages({
+  # Core analysis packages
+  library(DESeq2)
+  setOldClass("ExpData")  # Fix for DESeq2 on R 4.5.0
+  
+  # Visualization packages
+  library(pheatmap)      # For heatmap visualization
+  library(RColorBrewer)  # For color palettes
+  
+  # Data manipulation packages
+  library(tidyverse)     # For data manipulation
+  library(dplyr)         # For data manipulation
+  library(matrixStats)   # For rowVars
+  
+  # Project organization
+  library(here)          # For robust file paths
+})
+
+# Initialize here
+here::i_am("scripts/06_explore_heatmap.R")
+
+# Set up file paths
+paths <- list(
+  transformed_data = here("results", "eda", "normalized_counts.rds"),
+  output_dir = here("results", "eda", "heatmaps"),
+  heatmap_pdf = here("results", "eda", "heatmaps", "top_variable_genes_heatmap.pdf"),
+  heatmap_png = here("results", "eda", "heatmaps", "top_variable_genes_heatmap.png"),
+  top_genes_list = here("results", "eda", "heatmaps", "top_variable_genes_list.csv"),
+  log_file = here("logs", "06_top_variable_genes_heatmap_log.txt")
+)
+
+# Create output directories
+dir.create(paths$output_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(dirname(paths$log_file), recursive = TRUE, showWarnings = FALSE)
+
+# Start logging
+sink(paths$log_file, append = FALSE, split = TRUE)
+cat("=== Top Variable Genes Heatmap Generation Log ===\n")
+cat("Script started:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
+
+# Record Git commit hash if available
+git_hash <- try(system("git rev-parse HEAD", intern = TRUE), silent = TRUE)
+if (!inherits(git_hash, "try-error")) {
+  cat("Git commit:", git_hash, "\n")
+}
+
+# Record R version
+cat("\nR version:", R.version.string, "\n")
+
+# ==================================== #
+# 1. Load and Validate Transformed Data #
+# ==================================== #
+
+cat("\nLoading transformed data...\n")
+if (!file.exists(paths$transformed_data)) {
+  stop("Input transformed data file not found. Please run 03_data_transformation.R first.")
+}
+
+# Load the transformed data object
+transformed_data <- tryCatch({
+  readRDS(paths$transformed_data)
+}, error = function(e) {
+  cat("Error reading transformed data:", conditionMessage(e), "\n")
+  stop(e)
+})
+
+# Validate data structure
+if (!all(c("rlog", "vst") %in% names(transformed_data))) {
+  stop("Input data must contain both 'rlog' and 'vst' transformations")
+}
+
+# Use rlog transformation (preferred as per previous scripts)
+rlog_data <- transformed_data$rlog
+
+cat("Using RLOG transformed data\n")
+cat("Number of genes:", nrow(rlog_data), "\n")
+cat("Number of samples:", ncol(rlog_data), "\n")
+
+# Extract and validate sample metadata
+sample_metadata <- as.data.frame(colData(rlog_data))
+required_cols <- c("Strain", "Tissue", "Treatment")
+if (!all(required_cols %in% colnames(sample_metadata))) {
+  stop("Sample metadata missing required columns: ", 
+       paste(setdiff(required_cols, colnames(sample_metadata)), collapse=", "))
+}
+
+# =================================== #
+# 2. Identify Top N Variable Genes    #
+# =================================== #
+
+cat("\nIdentifying top variable genes...\n")
+
+# Set the number of top variable genes to analyze
+N_top_genes <- 500  # Can be adjusted based on needs
+
+# Get the expression matrix
+expression_matrix <- assay(rlog_data)
+
+# Calculate variance for each gene
+gene_variances <- rowVars(expression_matrix)
+
+# Check for zero variance genes
+zero_var_genes <- sum(gene_variances == 0)
+cat("Number of genes with zero variance:", zero_var_genes, "\n")
+
+# Order genes by variance and select top N
+ordered_gene_indices <- order(gene_variances, decreasing = TRUE)
+top_n_gene_indices <- ordered_gene_indices[1:N_top_genes]
+top_n_expression_matrix <- expression_matrix[top_n_gene_indices, ]
+top_n_gene_names <- rownames(expression_matrix)[top_n_gene_indices]
+
+cat("Selected top", N_top_genes, "most variable genes.\n")
+cat("Dimensions of top variable genes matrix:", 
+    paste(dim(top_n_expression_matrix), collapse = " x "), "\n")
+
+# ================================== #
+# 3. Generate Annotated Heatmap      #
+# ================================== #
+
+cat("\nGenerating annotated heatmap...\n")
+
+# Prepare annotation data frame
+annotation_df <- sample_metadata[, c("Strain", "Tissue", "Treatment")]
+
+# Order samples logically
+cat("Ordering samples by experimental conditions...\n")
+# Create ordered factor levels for consistent ordering
+tissue_levels <- c("NG", "T-DRG", "L-DRG")
+treatment_levels <- c("CTRL", "FA")
+strain_levels <- c("B6", "BALBc")
+
+# Convert metadata columns to ordered factors
+annotation_df$Tissue <- factor(annotation_df$Tissue, levels = tissue_levels)
+annotation_df$Treatment <- factor(annotation_df$Treatment, levels = treatment_levels)
+annotation_df$Strain <- factor(annotation_df$Strain, levels = strain_levels)
+
+# Create a composite ordering based on all conditions
+sample_order <- order(annotation_df$Tissue, 
+                     annotation_df$Treatment,
+                     annotation_df$Strain)
+
+# Reorder annotation dataframe and expression matrices
+annotation_df <- annotation_df[sample_order, ]
+top_n_expression_matrix <- top_n_expression_matrix[, sample_order]
+expression_matrix <- expression_matrix[, sample_order]
+
+# Define colors for annotations (consistent with other scripts)
+annotation_colors <- list(
+  Strain = c("B6" = "#E41A1C", "BALBc" = "#377EB8"),
+  Tissue = c("NG" = "#4DAF4A", "T-DRG" = "#984EA3", "L-DRG" = "#FF7F00"),
+  Treatment = c("CTRL" = "#A65628", "FA" = "#F781BF")
+)
+
+# Function to create heatmap with consistent styling
+create_heatmap <- function(expr_matrix, show_gene_names = FALSE, title_prefix = "Top") {
+  # Create column labels that combine conditions for better readability
+  column_labels <- paste(
+    annotation_df$Tissue,
+    annotation_df$Treatment,
+    annotation_df$Strain,
+    sep = "_"
+  )
+  
+  pheatmap(
+    mat = expr_matrix,
+    annotation_col = annotation_df,
+    annotation_colors = annotation_colors,
+    scale = "row",  # Z-score scaling
+    clustering_distance_rows = "euclidean",
+    cluster_cols = FALSE,  # Disable column clustering to maintain our ordering
+    clustering_method = "complete",
+    show_rownames = show_gene_names,
+    show_colnames = TRUE,
+    labels_col = column_labels,  # Use combined condition labels
+    fontsize_row = ifelse(show_gene_names, 8, 6),
+    fontsize_col = 7,  # Slightly smaller to accommodate longer labels
+    angle_col = 45,    # Angle the labels for better readability
+    main = paste(title_prefix, nrow(expr_matrix), "Variable Genes\n(RLOG Transformed, Row-scaled)"),
+    treeheight_row = 50,
+    treeheight_col = 0,  # No column dendrogram since we disabled clustering
+    border_color = NA,
+    gaps_col = cumsum(table(annotation_df$Tissue)[tissue_levels])  # Add visual gaps between tissues
+  )
+}
+
+# Generate main heatmap (500 genes)
+cat("Creating main heatmap (500 genes)...\n")
+heatmap_obj <- create_heatmap(top_n_expression_matrix, show_gene_names = N_top_genes <= 50)
+
+# Generate detailed heatmap for top 100 genes
+cat("Creating detailed heatmap (top 100 genes with names)...\n")
+top_100_matrix <- expression_matrix[ordered_gene_indices[1:100], ]
+heatmap_obj_detailed <- create_heatmap(
+  top_100_matrix, 
+  show_gene_names = TRUE,
+  title_prefix = "Top (Detailed)"
+)
+
+# ======================== #
+# 4. Statistical Summaries #
+# ======================== #
+
+cat("\nGenerating statistical summaries of variable genes...\n")
+
+# Update paths for summary files
+paths$stats_dir <- here("results", "eda", "heatmaps", "stats")
+paths$variance_stats <- file.path(paths$stats_dir, "variance_statistics.csv")
+paths$group_stats <- file.path(paths$stats_dir, "group_wise_statistics.csv")
+paths$top_genes_by_group <- file.path(paths$stats_dir, "top_genes_by_group.csv")
+paths$correlation_stats <- file.path(paths$stats_dir, "gene_correlation_stats.csv")
+
+# Create stats directory
+dir.create(paths$stats_dir, recursive = TRUE, showWarnings = FALSE)
+
+# 4.1 Overall Variance Statistics
+cat("Calculating overall variance statistics...\n")
+variance_stats <- data.frame(
+  GeneID = rownames(expression_matrix),
+  Mean_Expression = rowMeans(expression_matrix),
+  Variance = gene_variances,
+  CV = sqrt(gene_variances) / rowMeans(expression_matrix),  # Coefficient of variation
+  Percentile_Rank = rank(gene_variances) / length(gene_variances) * 100
+)
+
+# Add quartile information
+variance_stats$Variance_Quartile <- cut(variance_stats$Variance, 
+                                      breaks = quantile(variance_stats$Variance, probs = 0:4/4),
+                                      labels = c("Q1", "Q2", "Q3", "Q4"),
+                                      include.lowest = TRUE)
+
+write.csv(variance_stats, file = paths$variance_stats, row.names = FALSE)
+
+# 4.2 Group-wise Statistics
+cat("Calculating group-wise statistics...\n")
+
+# Function to calculate group statistics
+calculate_group_stats <- function(expr_matrix, group_factor) {
+  # Calculate means and variances for each group
+  result <- data.frame(GeneID = rownames(expr_matrix))
+  
+  for(group in unique(group_factor)) {
+    group_samples <- group_factor == group
+    result[[paste0(group, "_Mean")]] <- rowMeans(expr_matrix[, group_samples, drop = FALSE])
+    result[[paste0(group, "_Variance")]] <- apply(expr_matrix[, group_samples, drop = FALSE], 1, var)
+  }
+  
+  return(result)
+}
+
+# Calculate statistics for each grouping factor
+tissue_stats <- calculate_group_stats(top_n_expression_matrix, annotation_df$Tissue)
+treatment_stats <- calculate_group_stats(top_n_expression_matrix, annotation_df$Treatment)
+strain_stats <- calculate_group_stats(top_n_expression_matrix, annotation_df$Strain)
+
+# Combine all group statistics
+group_stats <- Reduce(function(x, y) merge(x, y, by = "GeneID"), 
+                     list(tissue_stats, treatment_stats, strain_stats))
+
+write.csv(group_stats, file = paths$group_stats, row.names = FALSE)
+
+# 4.3 Top Differential Genes by Group
+cat("Identifying top differential genes between groups...\n")
+
+# Function to calculate fold changes between groups
+calculate_fold_changes <- function(expr_matrix, group_factor) {
+  group_means <- aggregate(t(expr_matrix), list(group_factor), mean)
+  groups <- unique(group_factor)
+  
+  # Calculate all pairwise fold changes
+  results <- list()
+  for(i in 1:(length(groups)-1)) {
+    for(j in (i+1):length(groups)) {
+      comparison <- paste(groups[i], "vs", groups[j])
+      fc <- group_means[group_means$Group.1 == groups[i], -1] - 
+            group_means[group_means$Group.1 == groups[j], -1]
+      results[[comparison]] <- fc
+    }
+  }
+  
+  return(do.call(cbind, results))
+}
+
+# Calculate fold changes for each grouping factor
+tissue_fc <- calculate_fold_changes(top_n_expression_matrix, annotation_df$Tissue)
+treatment_fc <- calculate_fold_changes(top_n_expression_matrix, annotation_df$Treatment)
+strain_fc <- calculate_fold_changes(top_n_expression_matrix, annotation_df$Strain)
+
+# Combine fold change results
+fold_changes <- data.frame(
+  GeneID = rownames(top_n_expression_matrix),
+  tissue_fc,
+  treatment_fc,
+  strain_fc
+)
+
+write.csv(fold_changes, file = paths$top_genes_by_group, row.names = FALSE)
+
+# 4.4 Gene Correlation Analysis
+cat("Analyzing gene correlations...\n")
+
+# Calculate correlation statistics for top genes
+top_gene_cor <- cor(t(top_n_expression_matrix))
+mean_correlation <- rowMeans(abs(top_gene_cor))
+max_correlation <- apply(abs(top_gene_cor), 1, function(x) max(x[x < 1]))
+
+correlation_stats <- data.frame(
+  GeneID = rownames(top_n_expression_matrix),
+  Mean_Absolute_Correlation = mean_correlation,
+  Max_Correlation = max_correlation,
+  Highly_Correlated_Count = rowSums(abs(top_gene_cor) > 0.8) - 1  # Subtract 1 to exclude self-correlation
+)
+
+write.csv(correlation_stats, file = paths$correlation_stats, row.names = FALSE)
+
+# Print summary to log
+cat("\nStatistical Summary Results:\n")
+cat("1. Overall variance statistics saved to:", paths$variance_stats, "\n")
+cat("2. Group-wise statistics saved to:", paths$group_stats, "\n")
+cat("3. Top genes by group comparisons saved to:", paths$top_genes_by_group, "\n")
+cat("4. Gene correlation statistics saved to:", paths$correlation_stats, "\n")
+
+# Add summary to analysis parameters section
+cat("\nStatistical Summaries Generated:\n")
+cat("- Number of genes with high variance (top quartile):", sum(variance_stats$Variance_Quartile == "Q4"), "\n")
+cat("- Mean coefficient of variation:", mean(variance_stats$CV), "\n")
+cat("- Number of highly correlated gene pairs (|r| > 0.8):", 
+    sum(correlation_stats$Highly_Correlated_Count > 0), "\n")
+
+# ======================== #
+# 5. Save Outputs         #
+# ======================== #
+
+cat("\nSaving outputs...\n")
+
+# Save main heatmap as PDF
+pdf(paths$heatmap_pdf, width = 12, height = 14)
+print(heatmap_obj)
+dev.off()
+cat("Main heatmap saved to PDF:", paths$heatmap_pdf, "\n")
+
+# Save main heatmap as PNG
+png(paths$heatmap_png, width = 1200, height = 1400, res = 150)
+print(heatmap_obj)
+dev.off()
+cat("Main heatmap saved to PNG:", paths$heatmap_png, "\n")
+
+# Save detailed heatmap (top 100 genes) as PDF
+detailed_heatmap_pdf <- file.path(dirname(paths$heatmap_pdf), "top_100_genes_detailed_heatmap.pdf")
+pdf(detailed_heatmap_pdf, width = 14, height = 16)  # Slightly larger for gene names
+print(heatmap_obj_detailed)
+dev.off()
+cat("Detailed heatmap (top 100 genes) saved to PDF:", detailed_heatmap_pdf, "\n")
+
+# Prepare and save top genes list
+top_genes_df <- data.frame(
+  GeneID = top_n_gene_names,
+  Variance = gene_variances[top_n_gene_indices],
+  Mean_Expression = rowMeans(top_n_expression_matrix)
+)
+
+write.csv(top_genes_df, file = paths$top_genes_list, row.names = FALSE)
+cat("List of top", N_top_genes, "variable genes saved to:", paths$top_genes_list, "\n")
+
+# ======================== #
+# 6. Finish and Clean Up  #
+# ======================== #
+
+cat("\nAnalysis parameters:\n")
+cat("- Number of top variable genes (N):", N_top_genes, "\n")
+cat("- Transformation type used: RLOG\n")
+cat("- Row scaling for heatmap: TRUE (Z-score)\n")
+cat("- Clustering method: complete\n")
+cat("- Distance metric: euclidean\n")
+
+cat("\nSession Info:\n")
+print(sessionInfo())
+
+cat("\nScript finished:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
+sink()
+
+cat("Top variable genes heatmap analysis completed.\n")
+cat("Log file saved to:", paths$log_file, "\n")
+cat("Outputs saved in:", paths$output_dir, "\n") 

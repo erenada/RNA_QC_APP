@@ -1,0 +1,285 @@
+# scripts/05_distance_matrix_analysis.R
+#
+# Author: Eren Ada, PhD
+# Date: 05/10/2025
+#
+# Description: 
+# This script calculates and visualizes sample-to-sample distances using transformed RNA-seq data.
+# It generates a heatmap with hierarchical clustering and experimental factor annotations.
+# The script uses the transformed data (RLOG/VST) from 03_data_transformation.R.
+#
+# Input files:
+# - A list object containing VST and RLOG transformed data:
+#   results/eda/normalized_counts.rds (output from 03_data_transformation.R)
+#   This list has elements $rlog and $vst
+#
+# Output files:
+# - Sample distance heatmap (results/eda/sample_correlation/sample_distance_heatmap.pdf)
+# - Sample distance matrix (results/eda/sample_correlation/sample_distances.rds)
+# - Processing log (logs/05_distance_matrix_log.txt)
+
+# ========================= #
+# 0. Setup and Preparation #
+# ========================= #
+
+# Load required packages silently
+suppressPackageStartupMessages({
+  # Core analysis packages
+  library(DESeq2)
+  setOldClass("ExpData")  # Fix for DESeq2 on R 4.5.0
+  
+  # Visualization packages
+  library(pheatmap)      # For heatmap visualization
+  library(RColorBrewer)  # For color palettes
+  
+  # Data manipulation packages
+  library(tidyverse)     # For data manipulation
+  library(dplyr)         # For data manipulation
+  
+  # Project organization
+  library(here)          # For robust file paths
+})
+
+# Initialize here
+here::i_am("scripts/05_distance_matrix_analysis.R")
+
+# Set up file paths
+paths <- list(
+  transformed_data = here("results", "eda", "normalized_counts.rds"),
+  output_dir = here("results", "eda", "sample_correlation"),
+  heatmap_pdf = here("results", "eda", "sample_correlation", "sample_distance_heatmap.pdf"),
+  heatmap_png = here("results", "eda", "sample_correlation", "sample_distance_heatmap.png"),
+  distances_rds = here("results", "eda", "sample_correlation", "sample_distances.rds"),
+  log_file = here("logs", "05_distance_matrix_log.txt"),
+  outlier_stats_csv = here("results", "eda", "sample_correlation", "outlier_statistics.csv"),
+  distance_summary_csv = here("results", "eda", "sample_correlation", "distance_summary.csv")
+)
+
+# Create output directories
+dir.create(paths$output_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(dirname(paths$log_file), recursive = TRUE, showWarnings = FALSE)
+
+# Start logging
+sink(paths$log_file, append = FALSE, split = TRUE)
+cat("=== Sample Distance Matrix and Clustering Analysis Log ===\n")
+cat("Script started:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
+
+# Record Git commit hash if available
+git_hash <- try(system("git rev-parse HEAD", intern = TRUE), silent = TRUE)
+if (!inherits(git_hash, "try-error")) {
+  cat("Git commit:", git_hash, "\n")
+}
+
+# Record R version
+cat("\nR version:", R.version.string, "\n")
+
+# ==================================== #
+# 1. Load and Validate Transformed Data #
+# ==================================== #
+
+cat("\nLoading transformed data...\n")
+if (!file.exists(paths$transformed_data)) {
+  stop("Input transformed data file not found. Please run 03_data_transformation.R first.")
+}
+
+# Load the transformed data object
+transformed_data <- tryCatch({
+  readRDS(paths$transformed_data)
+}, error = function(e) {
+  cat("Error reading transformed data:", conditionMessage(e), "\n")
+  stop(e)
+})
+
+# Validate data structure
+if (!all(c("rlog", "vst") %in% names(transformed_data))) {
+  stop("Input data must contain both 'rlog' and 'vst' transformations")
+}
+
+# Use rlog transformation (preferred as per previous scripts)
+rlog_data <- tryCatch({
+  transformed_data$rlog
+}, error = function(e) {
+  cat("Error accessing RLOG data:", conditionMessage(e), "\n")
+  stop(e)
+})
+
+cat("Using RLOG transformed data\n")
+cat("Number of genes:", nrow(rlog_data), "\n")
+cat("Number of samples:", ncol(rlog_data), "\n")
+
+# Extract and validate sample metadata
+sample_metadata <- as.data.frame(colData(rlog_data))
+required_cols <- c("Strain", "Tissue", "Treatment")
+if (!all(required_cols %in% colnames(sample_metadata))) {
+  stop("Sample metadata missing required columns: ", 
+       paste(setdiff(required_cols, colnames(sample_metadata)), collapse=", "))
+}
+
+# ======================================== #
+# 2. Calculate Sample-to-Sample Distances  #
+# ======================================== #
+
+cat("\nCalculating sample-to-sample distances...\n")
+
+# Get the transformed count matrix
+transformed_counts <- tryCatch({
+  assay(rlog_data)
+}, error = function(e) {
+  cat("Error extracting count matrix:", conditionMessage(e), "\n")
+  stop(e)
+})
+
+# Calculate Euclidean distances between samples
+sample_distances <- dist(t(transformed_counts))
+sample_distance_matrix <- as.matrix(sample_distances)
+
+cat("Distance calculation complete\n")
+cat("Distance matrix dimensions:", paste(dim(sample_distance_matrix), collapse = " x "), "\n")
+
+# Check for potential outliers
+mean_distances <- rowMeans(sample_distance_matrix)
+outlier_threshold <- mean(mean_distances) + 2*sd(mean_distances)
+potential_outliers <- which(mean_distances > outlier_threshold)
+if (length(potential_outliers) > 0) {
+  cat("\nPotential outlier samples detected:", 
+      paste(rownames(sample_distance_matrix)[potential_outliers], collapse=", "), 
+      "\n")
+}
+
+# ================================== #
+# 3. Generate Annotated Heatmap      #
+# ================================== #
+
+cat("\nGenerating sample distance heatmap...\n")
+
+# Prepare annotation data frame
+annotation_df <- sample_metadata[, c("Strain", "Tissue", "Treatment")]
+
+# Define colors for annotations
+annotation_colors <- list(
+  Strain = c(B6 = "#1f77b4", BALBc = "#ff7f0e"),
+  Tissue = c(NG = "#2ca02c", `T-DRG` = "#d62728", `L-DRG` = "#9467bd"),
+  Treatment = c(CTRL = "#8c564b", FA = "#e377c2")
+)
+
+# Create color palette for the heatmap
+heatmap_colors <- colorRampPalette(rev(brewer.pal(9, "YlOrRd")))(255)
+
+# Generate the heatmap
+clustering_method <- "complete"  # Document clustering method
+cat("Using", clustering_method, "clustering method\n")
+
+# Save in PDF format
+pdf(paths$heatmap_pdf, width = 10, height = 8)
+pheatmap_plot <- pheatmap(
+  sample_distance_matrix,
+  clustering_distance_rows = sample_distances,
+  clustering_distance_cols = sample_distances,
+  clustering_method = clustering_method,
+  annotation_col = annotation_df,
+  annotation_colors = annotation_colors,
+  color = heatmap_colors,
+  main = "Sample-to-Sample Distances\n(RLOG transformed data, Euclidean distance)",
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  fontsize_row = 8,
+  fontsize_col = 8,
+  treeheight_row = 50,
+  treeheight_col = 50
+)
+dev.off()
+
+# Save in PNG format for easy viewing
+png(paths$heatmap_png, width = 1000, height = 800, res = 150)
+print(pheatmap_plot)
+dev.off()
+
+cat("Sample distance heatmap saved to:", paths$heatmap_pdf, "\n")
+cat("PNG version saved to:", paths$heatmap_png, "\n")
+
+# Save the distance matrix
+saveRDS(list(
+  distances = sample_distances,
+  distance_matrix = sample_distance_matrix,
+  metadata = sample_metadata,
+  potential_outliers = if(length(potential_outliers) > 0) potential_outliers else NULL
+), file = paths$distances_rds)
+cat("Distance data saved to:", paths$distances_rds, "\n")
+
+# ================================== #
+# 4. Export Summary Statistics        #
+# ================================== #
+
+cat("\nExporting summary statistics...\n")
+
+# Calculate and export outlier statistics
+outlier_stats <- data.frame(
+  Sample = rownames(sample_distance_matrix)[potential_outliers],
+  Mean_Distance = mean_distances[potential_outliers],
+  Z_Score = (mean_distances[potential_outliers] - mean(mean_distances)) / sd(mean_distances),
+  Threshold_Used = outlier_threshold,
+  stringsAsFactors = FALSE
+)
+write.csv(outlier_stats, file = paths$outlier_stats_csv, row.names = FALSE)
+
+# Calculate and export distance summary statistics
+distance_summary <- data.frame(
+  Statistic = c("Min_Distance", "Max_Distance", "Mean_Distance", "Median_Distance", "SD_Distance",
+                "Within_Strain_Mean", "Between_Strain_Mean",
+                "Within_Tissue_Mean", "Between_Tissue_Mean",
+                "Within_Treatment_Mean", "Between_Treatment_Mean"),
+  Value = c(
+    min(sample_distances),
+    max(sample_distances),
+    mean(sample_distances),
+    median(sample_distances),
+    sd(sample_distances),
+    # Calculate means within/between groups
+    mean(sample_distance_matrix[sample_metadata$Strain == "B6", sample_metadata$Strain == "B6"]),
+    mean(sample_distance_matrix[sample_metadata$Strain == "B6", sample_metadata$Strain == "BALBc"]),
+    # For tissue, calculate mean of within-tissue distances
+    mean(unlist(lapply(unique(sample_metadata$Tissue), function(t) {
+      sample_distance_matrix[sample_metadata$Tissue == t, sample_metadata$Tissue == t]
+    }))),
+    # For tissue, calculate mean of between-tissue distances
+    mean(unlist(lapply(unique(sample_metadata$Tissue), function(t1) {
+      lapply(unique(sample_metadata$Tissue), function(t2) {
+        if(t1 != t2) sample_distance_matrix[sample_metadata$Tissue == t1, sample_metadata$Tissue == t2]
+      })
+    }))),
+    # Similar calculations for treatment
+    mean(unlist(lapply(unique(sample_metadata$Treatment), function(t) {
+      sample_distance_matrix[sample_metadata$Treatment == t, sample_metadata$Treatment == t]
+    }))),
+    mean(unlist(lapply(unique(sample_metadata$Treatment), function(t1) {
+      lapply(unique(sample_metadata$Treatment), function(t2) {
+        if(t1 != t2) sample_distance_matrix[sample_metadata$Treatment == t1, sample_metadata$Treatment == t2]
+      })
+    })))
+  )
+)
+write.csv(distance_summary, file = paths$distance_summary_csv, row.names = FALSE)
+
+cat("Summary statistics exported to:\n")
+cat("- Outlier statistics:", paths$outlier_stats_csv, "\n")
+cat("- Distance summary:", paths$distance_summary_csv, "\n")
+
+# ======================== #
+# 5. Finish and Clean Up  #
+# ======================== #
+
+cat("\nAnalysis parameters:\n")
+cat("- Transformation type: RLOG\n")
+cat("- Distance metric: euclidean\n")
+cat("- Clustering method:", clustering_method, "\n")
+cat("- Number of genes used:", nrow(transformed_counts), "\n")
+cat("- Number of samples:", ncol(transformed_counts), "\n")
+
+cat("\nSession Info:\n")
+print(sessionInfo())
+cat("\nScript finished:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
+sink()
+
+cat("Sample distance matrix analysis completed.\n")
+cat("Log file saved to:", paths$log_file, "\n")
+cat("Results saved to:", paths$output_dir, "\n") 

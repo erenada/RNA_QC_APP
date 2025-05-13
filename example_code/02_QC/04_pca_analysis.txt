@@ -1,0 +1,295 @@
+# scripts/04_pca_analysis.R
+#
+# Author: Eren Ada, PhD
+# Date: 05/10/2025
+#
+# Description: 
+# This script performs Principal Component Analysis (PCA) using transformed RNA-seq data
+# (preferably RLOG, alternatively VST). It generates 2D and 3D PCA plots colored by
+# different experimental factors to visualize sample relationships and potential batch effects.
+#
+# Input files:
+# - A list object containing VST and RLOG transformed data:
+#   results/eda/normalized_counts.rds (output from 03_data_transformation.R)
+#   This list has elements $rlog and $vst
+#
+# Output files:
+# - 2D PCA plots (results/eda/pca/pca_2d_plots.pdf)
+# - 3D PCA plots (results/eda/pca/pca_3d_plot.html)
+# - PCA data object (results/eda/pca/pca_data_prcomp.rds)
+# - PCA log (logs/04_pca_analysis_log.txt)
+
+# ========================= #
+# 0. Setup and Preparation #
+# ========================= #
+
+# Load required packages
+suppressPackageStartupMessages({
+  # Core analysis packages
+  library(DESeq2)
+  # Fix for DESeq2 on R 4.5.0 - "superclass 'ExpData' not defined" error
+  setOldClass("ExpData")
+  
+  # Visualization packages
+  library(ggplot2)       # For customizing PCA plots
+  library(ggrepel)       # For non-overlapping text labels
+  library(plotly)        # For interactive 3D PCA plots
+  library(RColorBrewer)  # For color palettes
+  
+  # Data manipulation packages
+  library(tidyverse)     # For data manipulation
+  library(dplyr)         # For data manipulation
+  
+  # Project organization
+  library(here)          # For robust file paths
+})
+
+# Initialize here
+here::i_am("scripts/04_pca_analysis.R")
+
+# Set up file paths
+paths <- list(
+  transformed_data_input = here("results", "eda", "normalized_counts.rds"),
+  pca_plot_dir = here("results", "eda", "pca"),
+  pca_2d_plot_pdf = here("results", "eda", "pca", "pca_2d_plots.pdf"),
+  pca_3d_plot_html = here("results", "eda", "pca", "pca_3d_plot.html"),
+  pca_data_rds = here("results", "eda", "pca", "pca_data_prcomp.rds"),
+  log_file = here("logs", "04_pca_analysis_log.txt"),
+  pca_coordinates_csv = here("results", "eda", "pca", "pca_coordinates.csv"),
+  pca_variance_csv = here("results", "eda", "pca", "pca_variance_explained.csv"),
+  pca_loadings_csv = here("results", "eda", "pca", "pca_gene_loadings.csv")
+)
+
+# Create output directories
+dir.create(paths$pca_plot_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(dirname(paths$log_file), recursive = TRUE, showWarnings = FALSE)
+
+# Start logging
+sink(paths$log_file, append = FALSE, split = TRUE)
+cat("=== PCA Analysis Log ===\n")
+cat("Script started:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
+
+# Record Git commit hash if available
+git_hash <- try(system("git rev-parse HEAD", intern = TRUE), silent = TRUE)
+if (!inherits(git_hash, "try-error")) {
+  cat("Git commit:", git_hash, "\n")
+}
+
+# Record R version
+cat("\nR version:", R.version.string, "\n")
+
+# ==================================== #
+# 1. Load Transformed Data             #
+# ==================================== #
+
+cat("\nLoading transformed data object from:", paths$transformed_data_input, "...\n")
+if (!file.exists(paths$transformed_data_input)) {
+  stop("Input transformed data file not found: ", paths$transformed_data_input)
+}
+all_transformed_data <- readRDS(paths$transformed_data_input)
+
+# Choose the preferred transformation (RLOG was preferred based on meanSdPlot assessment)
+selected_transform_name <- "rlog"  # or "vst"
+selected_transformed_data <- all_transformed_data[[selected_transform_name]]
+
+if (is.null(selected_transformed_data)) {
+  stop(paste("The selected transformation (", selected_transform_name, ") was not found in the input RDS file."))
+}
+
+cat("Using", toupper(selected_transform_name), "transformed data for PCA.\n")
+cat("Number of genes in transformed data:", nrow(selected_transformed_data), "\n")
+cat("Number of samples in transformed data:", ncol(selected_transformed_data), "\n")
+cat("Sample metadata (colData) head:\n")
+print(head(colData(selected_transformed_data)))
+
+# ================================================ #
+# 2. Perform PCA and Generate 2D Plots             #
+# ================================================ #
+
+cat("\nGenerating 2D PCA plots...\n")
+
+# Open PDF device to save all 2D plots
+pdf(paths$pca_2d_plot_pdf, width = 11, height = 8.5)
+
+# --- Plot colored by Strain ---
+cat("Generating PCA plot colored by Strain...\n")
+pca_plot_strain <- plotPCA(selected_transformed_data, intgroup = "Strain")
+print(
+  pca_plot_strain + 
+    ggtitle("PCA: Colored by Strain") + 
+    geom_text_repel(aes(label = name), size = 3, max.overlaps = Inf) +
+    theme_bw() + 
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+)
+
+# --- Plot colored by Tissue ---
+cat("Generating PCA plot colored by Tissue...\n")
+pca_plot_tissue <- plotPCA(selected_transformed_data, intgroup = "Tissue")
+print(
+  pca_plot_tissue + 
+    ggtitle("PCA: Colored by Tissue") + 
+    geom_text_repel(aes(label = name), size = 3, max.overlaps = Inf) +
+    theme_bw() + 
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+)
+
+# --- Plot colored by Treatment ---
+cat("Generating PCA plot colored by Treatment...\n")
+pca_plot_treatment <- plotPCA(selected_transformed_data, intgroup = "Treatment")
+print(
+  pca_plot_treatment + 
+    ggtitle("PCA: Colored by Treatment") + 
+    geom_text_repel(aes(label = name), size = 3, max.overlaps = Inf) +
+    theme_bw() + 
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+)
+
+# --- Plot colored by the main 'group' factor ---
+cat("Generating PCA plot colored by Group...\n")
+pca_plot_group <- plotPCA(selected_transformed_data, intgroup = "group")
+print(
+  pca_plot_group + 
+    ggtitle("PCA: Colored by Group") + 
+    geom_text_repel(aes(label = name), size = 3, max.overlaps = Inf) +
+    theme_bw() + 
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+)
+
+# --- Optional: Plot colored by a custom combined factor (e.g., Strain_Treatment) ---
+cat("Generating PCA plot colored by Strain_Treatment combination...\n")
+temp_colData <- colData(selected_transformed_data)
+temp_colData$Strain_Treatment <- factor(paste0(temp_colData$Strain, "_", temp_colData$Treatment))
+# Temporarily assign new colData to a copy for this plot
+selected_transformed_data_custom_group <- selected_transformed_data
+colData(selected_transformed_data_custom_group) <- DataFrame(temp_colData)
+
+pca_plot_strain_treatment <- plotPCA(selected_transformed_data_custom_group, intgroup = "Strain_Treatment")
+print(
+  pca_plot_strain_treatment + 
+    ggtitle("PCA: Colored by Strain_Treatment") + 
+    geom_text_repel(aes(label = name), size = 3, max.overlaps = Inf) +
+    theme_bw() + 
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+)
+
+# Close PDF device for 2D plots
+dev.off()
+cat("2D PCA plots saved to:", paths$pca_2d_plot_pdf, "\n")
+
+# ================================================ #
+# 3. Generate 3D PCA Plot (using plotly)           #
+# ================================================ #
+
+cat("\nGenerating 3D PCA plot using plotly...\n")
+
+# Perform PCA manually to get PC3
+ntop <- 500  # Use top 500 most variable genes, consistent with plotPCA
+rv <- rowVars(assay(selected_transformed_data))
+select <- order(rv, decreasing = TRUE)[seq_len(min(ntop, length(rv)))]
+pca_input_matrix <- t(assay(selected_transformed_data)[select, ])
+pca_results <- prcomp(pca_input_matrix, center = TRUE, scale. = FALSE)
+
+# Calculate variance explained
+var_explained <- (pca_results$sdev^2) / sum(pca_results$sdev^2) * 100
+pc1_var <- round(var_explained[1], 1)
+pc2_var <- round(var_explained[2], 1)
+pc3_var <- round(var_explained[3], 1)
+
+# Create data frame for plotting
+pca_data <- as.data.frame(pca_results$x[,1:3])
+pca_data$sample_name <- rownames(pca_data)
+
+# Add metadata
+metadata <- as.data.frame(colData(selected_transformed_data))
+metadata$sample_name <- rownames(metadata)
+pca_data <- merge(pca_data, metadata, by = "sample_name")
+
+# ================================================ #
+# Export PCA Results as CSV files                  #
+# ================================================ #
+
+# Export PCA coordinates with metadata
+cat("\nExporting PCA coordinates with metadata...\n")
+write.csv(pca_data, file = paths$pca_coordinates_csv, row.names = FALSE)
+
+# Export variance explained
+cat("Exporting variance explained by PCs...\n")
+variance_df <- data.frame(
+  PC = paste0("PC", 1:length(var_explained)),
+  Variance_Explained_Percent = var_explained,
+  Cumulative_Variance_Percent = cumsum(var_explained)
+)
+write.csv(variance_df, file = paths$pca_variance_csv, row.names = FALSE)
+
+# Export gene loadings/contributions
+cat("Exporting gene loadings...\n")
+# Get the gene names for the selected top variable genes
+gene_names <- rownames(assay(selected_transformed_data))[select]
+loadings_df <- as.data.frame(pca_results$rotation)
+loadings_df$gene_id <- gene_names
+# Calculate the contribution of each gene to the variance of each PC
+contributions <- sweep(pca_results$rotation^2, 2, pca_results$sdev^2, "*")
+contributions_df <- as.data.frame(contributions)
+colnames(contributions_df) <- paste0("contrib_", colnames(contributions_df))
+loadings_df <- cbind(loadings_df, contributions_df)
+write.csv(loadings_df, file = paths$pca_loadings_csv, row.names = FALSE)
+
+cat("CSV files exported:\n")
+cat("- PCA coordinates:", paths$pca_coordinates_csv, "\n")
+cat("- Variance explained:", paths$pca_variance_csv, "\n")
+cat("- Gene loadings:", paths$pca_loadings_csv, "\n")
+
+# Create 3D plot with plotly
+fig_3d <- plot_ly(pca_data, 
+                  x = ~PC1, y = ~PC2, z = ~PC3,
+                  color = ~group,
+                  colors = RColorBrewer::brewer.pal(length(unique(pca_data$group)), "Set1"),
+                  text = ~sample_name,
+                  hoverinfo = "text",
+                  type = "scatter3d",
+                  mode = "markers",
+                  marker = list(size = 6, opacity = 0.8))
+
+# Update layout
+fig_3d <- fig_3d %>% layout(
+  title = "3D PCA Plot",
+  scene = list(
+    xaxis = list(title = paste0("PC1 (", pc1_var, "%)")),
+    yaxis = list(title = paste0("PC2 (", pc2_var, "%)")),
+    zaxis = list(title = paste0("PC3 (", pc3_var, "%)"))
+  )
+)
+
+# Save 3D plot as HTML
+htmlwidgets::saveWidget(fig_3d, paths$pca_3d_plot_html, selfcontained = TRUE)
+cat("3D PCA plot saved to:", paths$pca_3d_plot_html, "\n")
+
+# Save PCA results object
+saveRDS(pca_results, paths$pca_data_rds)
+cat("PCA results object saved to:", paths$pca_data_rds, "\n")
+
+# ================================================ #
+# 4. Assess Clustering and Document Findings       #
+# ================================================ #
+
+cat("\nAssessment based on PCA plots:\n")
+cat("- Primary axes of variation:\n")
+cat("  PC1 explains", pc1_var, "% of variance\n")
+cat("  PC2 explains", pc2_var, "% of variance\n")
+cat("  PC3 explains", pc3_var, "% of variance\n")
+cat("  Total variance explained by top 3 PCs:", round(sum(var_explained[1:3]), 1), "%\n\n")
+
+# ======================== #
+# 5. Finalize Logging     #
+# ======================== #
+
+cat("\nSession Info:\n")
+print(sessionInfo())
+cat("\nScript finished:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
+sink() # Stop logging
+
+cat("PCA analysis script completed successfully.\n")
+cat("- 2D PCA plots saved to:", paths$pca_2d_plot_pdf, "\n")
+cat("- 3D PCA plot saved to:", paths$pca_3d_plot_html, "\n")
+cat("- PCA results saved to:", paths$pca_data_rds, "\n")
+cat("- Log file saved to:", paths$log_file, "\n") 

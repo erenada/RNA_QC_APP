@@ -1,0 +1,211 @@
+# scripts/03_data_transformation.R
+#
+# Author: Eren Ada, PhD
+# Date: 05/08/2025
+#
+# Description: 
+# This script applies data transformations (VST and RLOG) to the filtered 
+# DESeqDataSet for visualization purposes. It includes comparing the 
+# transformations using meanSdPlot and saving the transformed data objects 
+# and their matrices.
+#
+# Input files:
+# - Filtered DESeqDataSet object (results/dea/deseq2_objects/dds_filtered.rds)
+#
+# Output files:
+# - VST transformed DESeqTransform object (results/eda/transformed_data/vst_transformed_data.rds)
+# - RLOG transformed DESeqTransform object (results/eda/transformed_data/rlog_transformed_data.rds)
+# - VST transformed assay matrix as CSV (results/eda/transformed_counts/vst_transformed_matrix.csv)
+# - RLOG transformed assay matrix as CSV (results/eda/transformed_counts/rlog_transformed_matrix.csv)
+# - Mean-SD comparison plots (results/eda/plots/mean_sd_plots.pdf)
+# - Transformation log (logs/03_data_transformation_log.txt)
+
+# ========================= #
+# 0. Setup and Preparation #
+# ========================= #
+
+# Load required packages
+suppressPackageStartupMessages({
+  # Core analysis packages
+  library(DESeq2)
+  # Fix for DESeq2 on R 4.5.0 - "superclass 'ExpData' not defined" error
+  setOldClass("ExpData")
+  
+  # Data manipulation packages
+  library(tidyverse)
+  library(dplyr)
+  
+  # Visualization packages
+  library(vsn)
+  library(ggplot2)
+  library(gridExtra)  # For arranging plots
+  
+  # Project organization
+  library(here)
+})
+
+# Initialize here
+here::i_am("scripts/03_data_transformation.R")
+
+# Set up file paths
+paths <- list(
+  dds_filtered_input = here("results", "dea", "deseq2_objects", "dds_filtered.rds"),
+  vst_rds_output = here("results", "eda", "transformed_data", "vst_transformed_data.rds"),
+  rlog_rds_output = here("results", "eda", "transformed_data", "rlog_transformed_data.rds"),
+  vst_csv_output = here("results", "eda", "transformed_counts", "vst_transformed_matrix.csv"),
+  rlog_csv_output = here("results", "eda", "transformed_counts", "rlog_transformed_matrix.csv"),
+  mean_sd_plot_output = here("results", "eda", "plots", "mean_sd_plots.pdf"),
+  log_file = here("logs", "03_data_transformation_log.txt")
+)
+
+# Create output directories
+dir.create(dirname(paths$vst_rds_output), recursive = TRUE, showWarnings = FALSE)
+dir.create(dirname(paths$vst_csv_output), recursive = TRUE, showWarnings = FALSE)
+dir.create(dirname(paths$mean_sd_plot_output), recursive = TRUE, showWarnings = FALSE)
+dir.create(dirname(paths$log_file), recursive = TRUE, showWarnings = FALSE)
+
+# Start logging
+sink(paths$log_file, append = FALSE, split = TRUE)
+cat("=== Data Transformation Log ===\n")
+cat("Script started:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
+
+# Record Git commit hash if available
+git_hash <- try(system("git rev-parse HEAD", intern = TRUE), silent = TRUE)
+if (!inherits(git_hash, "try-error")) {
+  cat("Git commit:", git_hash, "\n")
+}
+
+# Record R version
+cat("\nR version:", R.version.string, "\n")
+
+# ==================================== #
+# 1. Load Filtered DESeqDataSet        #
+# ==================================== #
+
+cat("\nLoading filtered DESeqDataSet object...\n")
+if (!file.exists(paths$dds_filtered_input)) {
+  stop("Input DESeqDataSet file not found: ", paths$dds_filtered_input)
+}
+
+dds_filtered <- readRDS(paths$dds_filtered_input)
+cat("Number of genes in filtered DDS:", nrow(dds_filtered), "\n")
+cat("Number of samples in filtered DDS:", ncol(dds_filtered), "\n")
+
+# ================================================ #
+# 2. Apply Variance Stabilizing Transformation (VST) #
+# ================================================ #
+
+cat("\nApplying Variance Stabilizing Transformation (VST)...\n")
+vst_data <- tryCatch({
+  vst(dds_filtered, blind = TRUE)
+}, error = function(e) {
+  cat("Error in VST transformation:", conditionMessage(e), "\n")
+  stop(e)
+})
+cat("VST completed.\n")
+
+# =================================================== #
+# 3. Apply Regularized Log Transformation (RLOG)       #
+# =================================================== #
+
+cat("\nApplying Regularized Log Transformation (RLOG)...\n")
+cat("Note: This may take some time for larger datasets...\n")
+rlog_data <- tryCatch({
+  rlog(dds_filtered, blind = TRUE)
+}, error = function(e) {
+  cat("Error in RLOG transformation:", conditionMessage(e), "\n")
+  stop(e)
+})
+cat("RLOG completed.\n")
+
+# ================================================= #
+# 4. Compare Transformations using meanSdPlot        #
+# ================================================= #
+
+cat("\nGenerating Mean-SD plots for comparison...\n")
+
+# Plot for raw counts (filtered)
+cat("Plotting Mean-SD for raw counts...\n")
+raw_plot <- meanSdPlot(assay(dds_filtered), 
+                      ranks = FALSE, 
+                      plot = FALSE)
+p1 <- raw_plot$gg + ggtitle("1. Raw Counts (Filtered)") +
+  theme(plot.title = element_text(size = 14, face = "bold"))
+
+# Plot for normalized counts - need to ensure size factors are calculated first
+cat("Calculating size factors and plotting normalized counts...\n")
+if(is.null(sizeFactors(dds_filtered))) {
+  cat("Size factors not found. Calculating size factors...\n")
+  dds_filtered <- estimateSizeFactors(dds_filtered)
+}
+normalized_counts <- counts(dds_filtered, normalized=TRUE)
+norm_plot <- meanSdPlot(normalized_counts,
+                       ranks = FALSE,
+                       plot = FALSE)
+p2 <- norm_plot$gg + ggtitle("2. Normalized Counts") +
+  theme(plot.title = element_text(size = 14, face = "bold"))
+
+# Plot for VST data
+cat("Plotting Mean-SD for VST data...\n")
+vst_plot <- meanSdPlot(assay(vst_data),
+                      ranks = FALSE,
+                      plot = FALSE)
+p3 <- vst_plot$gg + ggtitle("3. Variance Stabilizing Transformation (VST)") +
+  theme(plot.title = element_text(size = 14, face = "bold"))
+
+# Plot for RLOG data
+cat("Plotting Mean-SD for RLOG data...\n")
+rlog_plot <- meanSdPlot(assay(rlog_data),
+                       ranks = FALSE,
+                       plot = FALSE)
+p4 <- rlog_plot$gg + ggtitle("4. Regularized Log Transformation (RLOG)") +
+  theme(plot.title = element_text(size = 14, face = "bold"))
+
+# Save the combined plot
+pdf(paths$mean_sd_plot_output, width = 12, height = 10)
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+dev.off()
+cat("Mean-SD plots saved to:", paths$mean_sd_plot_output, "\n")
+
+# ============================================ #
+# 5. Save Transformed Data Objects and Matrices #
+# ============================================ #
+
+# Save VST Data
+cat("\nSaving VST transformed data...\n")
+saveRDS(vst_data, file = paths$vst_rds_output)
+vst_matrix <- assay(vst_data)
+vst_df <- as.data.frame(vst_matrix) %>%
+  rownames_to_column("gene_id")
+write.csv(vst_df, file = paths$vst_csv_output, row.names = FALSE)
+
+# Save RLOG Data
+cat("\nSaving RLOG transformed data...\n")
+saveRDS(rlog_data, file = paths$rlog_rds_output)
+rlog_matrix <- assay(rlog_data)
+rlog_df <- as.data.frame(rlog_matrix) %>%
+  rownames_to_column("gene_id")
+write.csv(rlog_df, file = paths$rlog_csv_output, row.names = FALSE)
+
+# Save combined transformed data as mentioned in roadmap
+transformed_data_list <- list(
+  vst = vst_data,
+  rlog = rlog_data
+)
+saveRDS(transformed_data_list, file = here("results", "eda", "normalized_counts.rds"))
+
+# ======================== #
+# 6. Finalize Logging     #
+# ======================== #
+
+cat("\nSession Info:\n")
+print(sessionInfo())
+cat("\nScript finished:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
+sink() # Stop logging
+
+cat("Data transformation script completed successfully.\n")
+cat("- VST data saved to:", paths$vst_rds_output, "and", paths$vst_csv_output, "\n")
+cat("- RLOG data saved to:", paths$rlog_rds_output, "and", paths$rlog_csv_output, "\n")
+cat("- Combined transformations saved to:", here("results", "eda", "normalized_counts.rds"), "\n")
+cat("- Mean-SD comparison plots saved to:", paths$mean_sd_plot_output, "\n")
+cat("- Log file saved to:", paths$log_file, "\n") 
