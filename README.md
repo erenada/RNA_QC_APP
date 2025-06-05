@@ -283,7 +283,7 @@ If you use this tool in your research, please cite:
   title = {Modular Bulk RNA-seq Analysis RShiny Tool Suite},
   year = {2025},
   version = {2.0.0},
-  url = {https://github.com/hms-immunology/RNA_Processing_APP}
+  url = {https://github.com/hms-immunology/RNA_QC_APP}
 }
 ```
 

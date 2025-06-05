@@ -223,7 +223,7 @@ ui <- fluidPage(
                             strong("Institution:"), "Harvard Medical School, Department of Immunology |",
                             strong("Date:"), "6/5/2025"),
                           p(strong("License:"), "CC BY-NC-SA 4.0 (Non-commercial research use) |",
-                            strong("Repository:"), a("GitHub", href = "https://github.com/hms-immunology/RNA_Processing_APP", target = "_blank"))
+                            strong("Repository:"), a("GitHub", href = "https://github.com/hms-immunology/RNA_QC_APP", target = "_blank"))
                       ),
                       
                       h4("About This Tool"),
@@ -368,7 +368,7 @@ ui <- fluidPage(
                             p(
                               a("Documentation", href = "docs/user_manual/README.html", target = "_blank", 
                                 class = "btn btn-info btn-sm", style = "margin: 2px;"), br(),
-                              a("Report Issue", href = "https://github.com/hms-immunology/RNA_Processing_APP/issues", target = "_blank", 
+                              a("Report Issue", href = "https://github.com/hms-immunology/RNA_QC_APP/issues", target = "_blank", 
                                 class = "btn btn-warning btn-sm", style = "margin: 2px;"), br(),
                               a("Contact Author", href = "mailto:erenada@gmail.com", 
                                 class = "btn btn-secondary btn-sm", style = "margin: 2px;"),

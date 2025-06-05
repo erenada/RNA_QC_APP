@@ -23,14 +23,14 @@ This guide provides step-by-step instructions for installing and setting up the 
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/hms-immunology/RNA_Processing_APP.git
-   cd RNA_Processing_APP
+   git clone https://github.com/hms-immunology/RNA_QC_APP.git
+   cd RNA_QC_APP
    ```
 
 2. **Launch the application:**
    ```r
    # Open R/RStudio and navigate to the project directory
-   setwd("path/to/RNA_Processing_APP")
+   setwd("path/to/RNA_QC_APP")
    
    # Launch the app (packages install automatically)
    shiny::runApp("app.R")
@@ -42,8 +42,8 @@ The application will automatically detect and install missing packages on first 
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/hms-immunology/RNA_Processing_APP.git
-   cd RNA_Processing_APP
+   git clone https://github.com/hms-immunology/RNA_QC_APP.git
+   cd RNA_QC_APP
    ```
 
 2. **Install R dependencies:**
