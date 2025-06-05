@@ -186,7 +186,6 @@ Sample datasets are provided in the `example_data/` directory for testing and le
 
 - **`example_counts.csv`** - Anonymized count matrix (5,001 genes × 24 samples)
 - **`example_metadata.csv`** - Corresponding sample metadata with experimental design
-- Additional larger datasets available for comprehensive testing
 
 The example data represents a multi-factorial experimental design with:
 - **2 Strains** (StrainA, StrainB) 
