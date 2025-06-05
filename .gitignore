@@ -1,65 +1,108 @@
-# History files
+# R specific files to ignore
 .Rhistory
 .Rapp.history
-
-# Session Data files
 .RData
-
-# User-specific files
 .Ruserdata
+.Rproj.user/
 
-# R Project files (if used with RStudio)
-*.Rproj
+# System files
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
 
-# Rmarkdown / Knitr cache and intermediate files
-*_cache/
-/cache/
-*.utf8.md
-*.knit.md
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
-# R Packages (if compiled in project)
-*.Rcheck/
-*.Rinst/
+# Temporary files
+*.log
+*.tmp
+*.temp
 
 # Shiny specific
 rsconnect/
 .shiny_app_error.log
 
-# macOS specific
-.DS_Store
-.AppleDouble
-.LSOverride
+# R package build files
+*.Rcheck/
+*.tar.gz
 
-# Windows specific
-Thumbs.db
-ehthumbs.db
+# ===========================================
+# EXCLUDE NON-ESSENTIAL PROJECT FILES
+# ===========================================
 
-# IDE specific files
-.idea/ # JetBrains IDEs
-.vscode/ # VSCode
+# External learning materials (not part of app)
+mastering-shiny/
 
-# Temporary files
-*~
-*.swp
-*.swo
+# Development artifacts and code statistics
+code_stats_*.png
+code_stats_*.html
+code_stats_viz.R
 
-# Large data files (consider Git LFS for these if they need to be tracked)
-# *.csv
-# *.tsv
-# *.txt
-# *.rda
-# *.rds
-# *.RData
-# *.bam
-# *.fastq
-# *.fq
+# Framework documentation files (not needed for app)
+framework_roadmap.html
+framework_roadmap_files/
 
-# Log files
-*.log
+# Development example code (not core app)
+example_code/
 
-# Outputs (unless specifically intended to be in version control)
-# output/
-# results/
+# Old development/pseudo files
+module1_server_tab1_pseudo.R
+module1_ui_tab1_pseudo.R
+qc_functionality_report.md
 
-# External repositories/directories not part of this project
-mastering-shiny/ 
+# Development logs (keep structure but not content)
+logs/
+
+# IDE workspace files
+APP.code-workspace
+
+# Duplicate documentation (already in docs/)
+www/docs/
+
+# Output directories
+output/
+results/
+plots/
+
+# Local configuration
+config.local.R
+.env
+
+# Backup files
+*.bak
+*.backup
+
+# ===========================================
+# KEEP ONLY THESE ESSENTIAL FILES/FOLDERS:
+# ===========================================
+# 
+# Core Application:
+# - app.R (main application file)
+# - modules/ (application modules)
+# - www/ (web assets if any, excluding duplicate docs)
+# 
+# Documentation:
+# - README.md
+# - LICENSE  
+# - CONTRIBUTING.md
+# - CHANGELOG.md
+# - INSTALL.md
+# - GITHUB_CHECKLIST.md
+# - docs/ (user and developer documentation)
+# 
+# Data & Configuration:
+# - example_data/ (sample datasets)
+# - .github/ (GitHub templates and workflows)
+# - .gitignore
+# - APP.Rproj
+# 
+# App Resources:
+# - inst/ (contains QC report template)
+# - framework_roadmap.md (development roadmap)
+# ===========================================

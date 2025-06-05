@@ -1,0 +1,660 @@
+/* styles.css */
+/* Global Styles for QC & Pre-processing Tool */
+
+/* Section Titles */
+.section-title {
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+/* Well Panels */
+.well {
+    background-color: #ffffff;
+    border: 1px solid #e3e3e3;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+/* Format Info */
+.format-info {
+    background-color: #f8f9fa;
+    border-left: 4px solid #17a2b8;
+    padding: 10px 15px;
+    margin-bottom: 20px;
+    font-size: 0.9em;
+    color: #495057;
+}
+
+.format-info i {
+    color: #17a2b8;
+    margin-right: 5px;
+}
+
+/* Detected Settings */
+.detected-settings {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.detected-settings p {
+    margin-bottom: 10px;
+    color: #2c3e50;
+}
+
+.detected-settings i {
+    margin-right: 8px;
+}
+
+.detected-settings .text-warning {
+    color: #f39c12;
+}
+
+.detected-settings .text-warning i {
+    color: #f39c12;
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: #3498db;
+    border-color: #2980b9;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+    border-color: #2472a4;
+    transform: translateY(-1px);
+}
+
+.btn-success {
+    background-color: #2ecc71;
+    border-color: #27ae60;
+    transition: all 0.3s ease;
+}
+
+.btn-success:hover {
+    background-color: #27ae60;
+    border-color: #219d54;
+    transform: translateY(-1px);
+}
+
+.btn-lg {
+    padding: 12px 24px;
+    font-size: 16px;
+}
+
+/* File Input Styling */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.file-input-label {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* Validation Summary */
+.validation-summary {
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border-left: 4px solid #3498db;
+}
+
+.validation-summary h5 {
+    color: #2c3e50;
+    margin-top: 15px;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.validation-summary p {
+    margin-bottom: 8px;
+    color: #34495e;
+}
+
+/* Alert Styling */
+.alert {
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+    color: #0c5460;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 4px;
+}
+
+.alert-success {
+    background-color: #dff0d8;
+    border-color: #d6e9c6;
+    color: #3c763d;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffeeba;
+    color: #856404;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.alert-warning i {
+    color: #856404;
+    margin-right: 8px;
+}
+
+.alert-error {
+    background-color: #f2dede;
+    border-color: #ebccd1;
+    color: #a94442;
+}
+
+/* Validation Details Styling */
+.validation-details {
+    margin-top: 10px;
+}
+
+.validation-details .alert {
+    margin-bottom: 10px;
+}
+
+.validation-details h6 {
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.validation-details .sample-mismatch-line {
+    margin-bottom: 5px;
+    line-height: 1.4;
+}
+
+.validation-details .warning-text {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.validation-details .details-text {
+    font-weight: 600;
+    color: #856404;
+}
+
+/* Data Table Styling */
+.dataTables_wrapper {
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.dataTable {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.dataTable thead th {
+    background-color: #f5f6fa;
+    border-bottom: 2px solid #3498db;
+    color: #2c3e50;
+}
+
+/* Help Text */
+.help-block {
+    color: #7f8c8d;
+    font-size: 0.9em;
+    margin-top: 5px;
+}
+
+/* Icons */
+.fa {
+    margin-right: 5px;
+}
+
+/* Radio Buttons and Checkboxes */
+.radio-inline, .checkbox-inline {
+    margin-right: 15px;
+}
+
+/* Input Groups */
+.input-group {
+    margin-bottom: 15px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .btn-lg {
+        width: 100%;
+    }
+    
+    .well {
+        padding: 10px;
+    }
+}
+
+/* Duplicate Options */
+.duplicate-options {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.duplicate-options .help-block {
+    margin-top: 10px;
+    color: #666;
+    font-style: italic;
+}
+
+/* Duplicate Preview Section */
+.duplicate-preview {
+  background-color: #fff;
+  border-radius: 4px;
+  padding: 15px;
+  margin-top: 20px;
+}
+
+.duplicate-preview h5 {
+  color: #2c3e50;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.duplicate-preview .dataTables_wrapper {
+  padding: 10px 0;
+}
+
+.duplicate-preview .dataTable {
+  border: 1px solid #dee2e6;
+  margin-bottom: 15px !important;
+}
+
+.duplicate-preview .dataTable thead th {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+  font-weight: 600;
+}
+
+.duplicate-preview .dataTable tbody td {
+  padding: 8px;
+}
+
+.duplicate-preview .dataTables_info {
+  color: #6c757d;
+  font-size: 0.9em;
+  padding-top: 0.5em;
+}
+
+.duplicate-preview .dataTables_paginate {
+  padding-top: 0.5em;
+}
+
+.duplicate-preview .dataTables_length {
+  margin-bottom: 1em;
+}
+
+/* Alert Info */
+.alert-info i {
+    color: #0c5460;
+    margin-right: 8px;
+}
+
+.text-muted {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-top: 8px;
+}
+
+.data-summary-box {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.summary-section {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.summary-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.summary-section h5 {
+  color: #2c3e50;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.summary-section .fa {
+  margin-right: 8px;
+}
+
+.summary-section ul {
+  list-style: none;
+  padding-left: 15px;
+  margin-bottom: 0;
+}
+
+.summary-section li {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.summary-section li:last-child {
+  margin-bottom: 0;
+}
+
+.expandable-details {
+  margin-top: 20px;
+}
+
+.expandable-details button {
+  margin-bottom: 15px;
+}
+
+.text-success {
+  color: #28a745;
+}
+
+.text-danger {
+  color: #dc3545;
+}
+
+.fa-check {
+  color: #28a745;
+}
+
+.fa-times {
+  color: #dc3545;
+}
+
+.fa-minus-circle {
+  color: #dc3545;
+}
+
+.fa-clone {
+  color: #17a2b8;
+}
+
+/* Nested lists in expandable details */
+.expandable-details ul ul {
+  margin-top: 8px;
+  margin-left: 20px;
+  border-left: 2px solid #eee;
+  padding-left: 15px;
+}
+
+/* File Requirements Section */
+.file-requirements {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 15px;
+  margin: 15px 0;
+}
+
+.file-requirements h5 {
+  color: #2c3e50;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.file-requirements ul {
+  list-style: none;
+  padding-left: 20px;
+  margin-bottom: 15px;
+}
+
+.file-requirements li {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.file-requirements li:before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #3498db;
+}
+
+.file-example {
+  background: #fff;
+  border-left: 3px solid #3498db;
+  padding: 10px 15px;
+  margin-top: 15px;
+}
+
+.file-example pre {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 0.85em;
+  margin: 5px 0 15px;
+  white-space: pre-wrap;
+}
+
+.mt-3 {
+  margin-top: 1rem;
+}
+
+.example-format-section button {
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  color: #2c3e50;
+  transition: all 0.2s ease;
+}
+
+.example-format-section button:hover {
+  background-color: #e9ecef;
+  border-color: #dee2e6;
+}
+
+/* Duplicate Genes Section */
+.card {
+  border: 1px solid rgba(0,0,0,.125);
+  border-radius: .25rem;
+}
+
+.card-body {
+  padding: 1.25rem;
+}
+
+.card-title {
+  margin-bottom: 1rem;
+  color: #2c3e50;
+}
+
+.duplicate-stats button {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.duplicate-stats .dataTables_wrapper {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: .25rem;
+}
+
+.mt-2 {
+  margin-top: .5rem;
+}
+
+.mt-3 {
+  margin-top: 1rem;
+}
+
+.alert-heading {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+/* Data Status */
+.data-status {
+    background-color: #e8f5e8;
+    border: 1px solid #c3e6c3;
+    border-radius: 4px;
+    padding: 10px 15px;
+    margin-bottom: 20px;
+    color: #2d5a2d;
+}
+
+/* Action Buttons */
+.action-buttons {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Proceed Section Styles */
+.proceed-section {
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.proceed-section:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.proceed-content {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.status-message {
+    transition: all 0.3s ease;
+}
+
+.status-success { 
+    background-color: rgba(40, 167, 69, 0.1); 
+    padding: 10px; 
+    border-radius: 4px; 
+    border-left: 3px solid #28a745;
+}
+
+.status-warning { 
+    background-color: rgba(255, 193, 7, 0.1); 
+    padding: 10px; 
+    border-radius: 4px; 
+    border-left: 3px solid #ffc107;
+}
+
+.status-error { 
+    background-color: rgba(220, 53, 69, 0.1); 
+    padding: 10px; 
+    border-radius: 4px; 
+    border-left: 3px solid #dc3545;
+}
+
+.status-info { 
+    background-color: rgba(23, 162, 184, 0.1); 
+    padding: 10px; 
+    border-radius: 4px; 
+    border-left: 3px solid #17a2b8;
+}
+
+/* Proceed Section Responsive Design */
+@media (max-width: 768px) {
+    .proceed-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .proceed-status {
+        min-width: 100% !important;
+        margin-bottom: 15px;
+    }
+    
+    .proceed-button button {
+        width: 100% !important;
+        margin-top: 15px;
+    }
+}
+
+/* Equal Height Columns for Data Summary */
+.equal-height-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+}
+
+.equal-height-col {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Target the wellPanel specifically */
+.equal-height-col .well {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0;
+}
+
+/* Make the content inside wellPanel flex */
+.equal-height-col .well > div {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ensure the data summary box stretches */
+.equal-height-col .data-summary-box {
+    flex-grow: 1;
+}
+
+/* Style the conditionalPanel to stretch */
+.equal-height-col .shiny-html-output {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Optional: Add padding to equalize visual weight */
+.equal-height-col:last-child {
+    padding-left: 15px;
+}
+
+@media (max-width: 768px) {
+    .equal-height-row {
+        display: block;
+    }
+    
+    .equal-height-col {
+        display: block;
+    }
+    
+    .equal-height-col .well {
+        display: block;
+    }
+    
+    .equal-height-col:last-child {
+        padding-left: 0;
+        margin-top: 15px;
+    }
+} 

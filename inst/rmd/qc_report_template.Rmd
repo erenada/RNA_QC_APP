@@ -1,0 +1,218 @@
+---
+title: "RNA-Seq Quality Control Report"
+author: "Eren Ada, PhD"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    theme: flatly
+    toc: true
+    toc_float: true
+    code_folding: hide
+params:
+  raw_counts: NULL
+  processed_data: NULL
+  metadata: NULL
+  normality_results: NULL
+  pca_results: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 10,
+  fig.height = 7
+)
+
+# Load required packages
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(pheatmap)
+library(DT)
+library(knitr)
+```
+
+# Executive Summary
+
+This report provides a comprehensive quality control analysis of the RNA-Seq dataset. The analysis includes library size distributions, gene detection rates, sample correlations, and normality assessments.
+
+## Dataset Overview
+
+```{r dataset-overview}
+# Basic dataset information
+n_samples <- ncol(params$raw_counts)
+n_genes <- nrow(params$raw_counts)
+n_metadata_cols <- ncol(params$metadata)
+
+# Create summary table
+overview_df <- data.frame(
+  Metric = c("Number of Samples", "Number of Genes", "Number of Metadata Variables"),
+  Value = c(n_samples, n_genes, n_metadata_cols)
+)
+
+kable(overview_df, caption = "Dataset Overview")
+```
+
+# Library Size Analysis
+
+## Distribution of Library Sizes
+
+```{r library-sizes}
+# Calculate library sizes
+raw_lib_sizes <- colSums(params$raw_counts)
+processed_lib_sizes <- colSums(params$processed_data)
+
+# Create plot data
+lib_sizes_df <- data.frame(
+  Sample = rep(names(raw_lib_sizes), 2),
+  LibrarySize = c(raw_lib_sizes, processed_lib_sizes),
+  DataType = rep(c("Raw", "Processed"), each = length(raw_lib_sizes))
+)
+
+# Create plot
+p <- ggplot(lib_sizes_df, aes(x = Sample, y = LibrarySize, fill = DataType)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Library Size Distribution",
+       y = "Library Size",
+       x = "Sample")
+
+ggplotly(p)
+```
+
+## Library Size Statistics
+
+```{r lib-size-stats}
+# Calculate statistics
+lib_stats <- data.frame(
+  Statistic = c("Minimum", "Maximum", "Mean", "Median", "Standard Deviation"),
+  Raw = c(min(raw_lib_sizes), max(raw_lib_sizes), mean(raw_lib_sizes),
+          median(raw_lib_sizes), sd(raw_lib_sizes)),
+  Processed = c(min(processed_lib_sizes), max(processed_lib_sizes),
+                mean(processed_lib_sizes), median(processed_lib_sizes),
+                sd(processed_lib_sizes))
+)
+
+kable(lib_stats, caption = "Library Size Statistics", digits = 2)
+```
+
+# Gene Detection Analysis
+
+## Gene Detection Rates
+
+```{r gene-detection}
+# Calculate detection rates (genes with counts > 0)
+detection_rates <- colMeans(params$processed_data > 0) * 100
+
+# Create plot
+detection_df <- data.frame(
+  Sample = names(detection_rates),
+  DetectionRate = detection_rates
+)
+
+p <- ggplot(detection_df, aes(x = Sample, y = DetectionRate)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Gene Detection Rates",
+       y = "Detection Rate (%)",
+       x = "Sample")
+
+ggplotly(p)
+```
+
+# Sample Similarity Analysis
+
+## Principal Component Analysis
+
+```{r pca-plot}
+# Extract PCA results
+pc_data <- as.data.frame(params$pca_results$pca_object$x)
+var_explained <- params$pca_results$var_explained
+
+# Create PCA plot
+p <- ggplot(pc_data, aes(x = PC1, y = PC2)) +
+  geom_point(size = 3) +
+  theme_bw() +
+  labs(
+    title = "Principal Component Analysis",
+    x = sprintf("PC1 (%.1f%%)", var_explained[1]),
+    y = sprintf("PC2 (%.1f%%)", var_explained[2])
+  )
+
+ggplotly(p)
+```
+
+## Sample Correlation Heatmap
+
+```{r correlation-heatmap}
+# Calculate correlation matrix
+cor_matrix <- cor(params$processed_data)
+
+# Create heatmap
+pheatmap(
+  cor_matrix,
+  main = "Sample Correlation Heatmap",
+  color = colorRampPalette(c("blue", "white", "red"))(100)
+)
+```
+
+# Normality Assessment
+
+## Summary of Normality Tests
+
+```{r normality-summary}
+# Extract normality results
+sample_stats <- params$normality_results$sample_stats
+
+# Create summary table
+normality_df <- do.call(rbind, lapply(names(sample_stats), function(sample) {
+  data.frame(
+    Sample = sample,
+    Skewness = sample_stats[[sample]]$skewness,
+    Kurtosis = sample_stats[[sample]]$kurtosis,
+    Shapiro_P = sample_stats[[sample]]$shapiro_p
+  )
+}))
+
+kable(normality_df, caption = "Normality Test Results", digits = 3)
+```
+
+## Recommendation
+
+```{r normality-recommendation}
+cat(params$normality_results$recommendation)
+```
+
+# Quality Control Metrics Summary
+
+```{r qc-summary}
+# Create summary of key QC metrics
+qc_summary <- data.frame(
+  Metric = c(
+    "Median Library Size",
+    "Mean Detection Rate",
+    "Mean Sample Correlation",
+    "Samples Passing Normality",
+    "PC1 Variance Explained"
+  ),
+  Value = c(
+    median(processed_lib_sizes),
+    mean(detection_rates),
+    mean(cor_matrix[upper.tri(cor_matrix)]),
+    sum(normality_df$Shapiro_P > 0.05, na.rm = TRUE),
+    var_explained[1]
+  )
+)
+
+kable(qc_summary, caption = "Summary of Key QC Metrics", digits = 2)
+```
+
+# Session Information
+
+```{r session-info}
+sessionInfo()
+``` 

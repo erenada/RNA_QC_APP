@@ -1,0 +1,80 @@
+name: R Package Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  R-check:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+        r-version: ['4.1', '4.2', '4.3']
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up R ${{ matrix.r-version }}
+      uses: r-lib/actions/setup-r@v2
+      with:
+        r-version: ${{ matrix.r-version }}
+
+    - name: Install system dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev
+
+    - name: Install R dependencies
+      run: |
+        install.packages(c("remotes", "BiocManager"))
+        BiocManager::install(version = "3.17")
+        
+        # Install CRAN packages
+        install.packages(c(
+          "shiny", "shinythemes", "shinyWidgets", "DT", "htmltools",
+          "dplyr", "tidyr", "readr", "ggplot2", "plotly", "scales",
+          "pheatmap", "ggrepel", "viridis", "RColorBrewer", "gridExtra",
+          "cowplot", "moments", "e1071", "matrixStats", "preprocessCore"
+        ))
+        
+        # Install Bioconductor packages
+        BiocManager::install(c(
+          "BiocGenerics", "S4Vectors", "IRanges", "GenomeInfoDb",
+          "GenomicRanges", "SummarizedExperiment", "DESeq2", "edgeR", "limma"
+        ))
+        
+        # Install testing packages
+        install.packages(c("testthat", "shinytest2"))
+      shell: Rscript {0}
+
+    - name: Check app loads
+      run: |
+        library(shiny)
+        # Basic syntax check
+        source("app.R", echo = TRUE)
+        print("App syntax check passed")
+      shell: Rscript {0}
+
+    - name: Run tests
+      run: |
+        if (dir.exists("tests")) {
+          testthat::test_dir("tests")
+        } else {
+          print("No tests directory found - skipping tests")
+        }
+      shell: Rscript {0}
+
+    - name: Check documentation
+      run: |
+        # Check if required documentation files exist
+        required_files <- c("README.md", "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md")
+        missing_files <- required_files[!file.exists(required_files)]
+        if (length(missing_files) > 0) {
+          stop("Missing required files: ", paste(missing_files, collapse = ", "))
+        }
+        print("Documentation check passed")
+      shell: Rscript {0} 

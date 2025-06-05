@@ -1,154 +1,180 @@
-# Framework Roadmap: Modular Bulk RNA-seq Analysis RShiny Tool
+# Framework Roadmap: QC & Pre-processing RShiny Tool
 
 **Author:** Eren Ada, PhD
-**Date:** 05/13/2025
-**Version:** 1.0
+**Date:** 05/29/2025
+**Version:** 2.0
 
 ## 1. Project Overview
 
-This document outlines the development plan for a comprehensive and modular bulk RNA-sequencing (RNA-seq) analysis tool built using RShiny. The tool will be developed as a suite of interconnected applications, allowing users to perform a complete analysis workflow from raw data to insightful visualizations. The primary goal is to leverage existing scripts and pipelines to create a user-friendly, robust, and extensible platform.
+This document outlines the development plan for a comprehensive Quality Control & Pre-processing tool for bulk RNA-sequencing (RNA-seq) data built using RShiny. This tool focuses exclusively on the critical first step of RNA-seq analysis: data validation, quality assessment, filtering, and normalization. The primary goal is to create a user-friendly, robust, and extensible platform that prepares raw count data for downstream analysis in separate, specialized applications.
+
+**Note:** This represents a focused approach where each major analysis component (QC/Pre-processing, Differential Expression, Pathway Analysis, Advanced Visualization) will be developed as separate, standalone RShiny applications. This QC tool will serve as the foundation, producing clean, well-characterized data for subsequent analysis tools.
 
 ## 2. Core Philosophy
 
-*   **Modularity:** Each major analysis step will be a separate RShiny application. This allows for focused development, easier maintenance, and the possibility for users to utilize only the modules they need.
-*   **Comprehensiveness:** Each module will aim to incorporate a wide range of standard and advanced options for its respective analysis stage.
-*   **User-Friendliness:** The interface will be intuitive, guiding users through the analysis with clear instructions and interactive visualizations.
-*   **Reproducibility:** The tool will encourage reproducible research by keeping track of parameters and potentially generating reports.
-*   **Extensibility:** The modular design should facilitate the addition of new features or analysis types in the future.
+*   **Modularity:** This QC tool will be a standalone application that can interface with other analysis tools through standardized data exports.
+*   **Comprehensiveness:** The tool will incorporate a wide range of standard and advanced QC options and normalization methods.
+*   **User-Friendliness:** The interface will be intuitive, guiding users through QC analysis with clear instructions and interactive visualizations.
+*   **Reproducibility:** The tool will encourage reproducible research by keeping track of parameters and generating detailed QC reports.
+*   **Extensibility:** The modular design within the QC tool should facilitate the addition of new QC features or normalization methods.
+*   **Data Export:** Clean, standardized data export formats that can be easily imported into other RNA-seq analysis tools.
 
-## 3. Application Modules
+## 3. Application Structure: QC & Pre-processing Tool
 
-The project will be developed in the following distinct application modules:
+### 3.1. Tab 1: Data Input & Validation
 
-### 3.1. Module 1: QC & Pre-processing Tool
-
-*   **Objective:** Provide tools for quality control, normalization, filtering, and pre-processing of raw count matrices to prepare them for differential gene expression analysis.
+*   **Objective:** Robust data loading, format validation, and initial data inspection.
 *   **Key Features:**
-    *   Input:
-        *   Raw count matrices (e.g., from featureCounts, HTSeq-count, output of pipelines like RNA-seek).
-        *   Sample metadata file (crucial for QC and downstream analysis).
-    *   Data Loading & Initial Inspection:
-        *   Flexible upload options for count data and metadata.
-        *   Validation of data formats and consistency (e.g., matching sample names).
-        *   Summary statistics (library sizes, number of detected genes per sample).
-    *   Quality Control & Visualization on Counts:
-        *   Distribution plots (e.g., boxplots of log-counts per sample).
-        *   Detection of genes with low counts/expression across samples.
-        *   Principal Component Analysis (PCA) / Multidimensional Scaling (MDS) plots for initial sample clustering, outlier detection, and batch effect visualization (if batch information is in metadata).
-        *   Sample-to-sample correlation heatmaps.
-    *   Filtering:
-        *   Filtering of low-expressed genes based on user-defined criteria (e.g., minimum counts in a minimum number of samples).
-        *   Optional filtering of samples based on QC metrics (e.g., library size, gene detection rate outliers).
-    *   Normalization:
-        *   Common normalization methods (e.g., Counts Per Million (CPM), Trimmed Mean of M-values (TMM) for edgeR, Relative Log Expression (RLE) / median of ratios for DESeq2).
-        *   Visualization of data before and after normalization (e.g., PCA, boxplots).
-    *   Output:
-        *   Filtered and normalized count matrices.
-        *   QC reports, summary statistics, and various plots (PCA, heatmaps, etc.).
-        *   Data object ready for DEG analysis (e.g., DGEList for edgeR, DESeqDataSet for DESeq2, or a generic expression matrix).
-*   **Starting Point:** Leverage existing R scripts and best practices for count matrix QC, filtering, and normalization (e.g., using principles from `edgeR`, `DESeq2`, `limma` pre-processing steps).
+    *   **Input Support:**
+        *   Raw count matrices (CSV, TSV formats from featureCounts, HTSeq-count, STAR, etc.)
+        *   Sample metadata files with experimental design information
+        *   Automatic format detection and validation
+    *   **Data Validation:**
+        *   Sample name consistency between counts and metadata
+        *   Duplicate gene handling (sum, rename, remove, keep highest)
+        *   Missing value detection and handling
+        *   Data type validation (integer counts, proper formatting)
+    *   **Initial Data Inspection:**
+        *   Summary statistics (genes, samples, total counts)
+        *   Library size distribution
+        *   Zero-count gene identification
+        *   Data dimension summaries
 
-### 3.2. Module 2: Differential Gene Expression (DEG) Analysis Tool
+### 3.2. Tab 2: Quality Control Plots & Summaries
 
-*   **Objective:** Perform comprehensive DEG analysis from pre-processed and normalized count data.
+*   **Objective:** Comprehensive quality assessment through visualizations and statistical summaries.
 *   **Key Features:**
-    *   Input: Filtered and normalized count matrices (output from Module 1), sample metadata file (detailing experimental design and conditions).
-    *   Normalization methods (e.g., TPM, FPKM, TMM, RLE).
-    *   DEG analysis using established methods:
-        *   DESeq2
-        *   edgeR
-        *   limma-voom
-    *   Support for complex experimental designs (e.g., multifactorial, time-series).
-    *   Interactive visualizations:
-        *   Volcano plots
-        *   MA plots
-        *   Heatmaps of DEGs
-        *   PCA plots, MDS plots
-    *   Filtering and selection of DEGs based on p-value, FDR, log-fold change.
-    *   Output: Normalized count tables, DEG lists, various plots.
-*   **Starting Point:** Adapt existing DEG analysis R scripts.
+    *   **Basic QC Metrics:**
+        *   Library size distributions (boxplots, barplots)
+        *   Gene detection rates per sample
+        *   Summary statistics tables
+    *   **Sample Similarity Analysis:**
+        *   Principal Component Analysis (PCA) with 2D/3D visualization
+        *   Variance explained analysis
+        *   Sample clustering assessment
+    *   **Sample Correlation Analysis:**
+        *   Sample-to-sample correlation heatmaps
+        *   Correlation method selection (Pearson, Spearman)
+        *   Metadata-based sample filtering and annotation
+        *   Statistical significance testing
+    *   **Normality Assessment:**
+        *   Distribution analysis (Q-Q plots, density plots, histograms)
+        *   Normality tests (Shapiro-Wilk, Kolmogorov-Smirnov, Anderson-Darling)
+        *   Correlation method recommendations based on data distribution
 
-### 3.3. Module 3: Pathway & Functional Enrichment Analysis Tool
+### 3.3. Tab 3: Filtering & Normalization
 
-*   **Objective:** Identify biological pathways, GO terms, and other functional categories enriched in the list of DEGs.
+*   **Objective:** Data filtering and normalization with comprehensive evaluation of results.
 *   **Key Features:**
-    *   Input: List of DEGs (gene IDs, fold changes, p-values).
-    *   Support for multiple gene ID types (Ensembl, Entrez, Gene Symbol).
-    *   Databases for enrichment:
-        *   Gene Ontology (GO)
-        *   KEGG pathways
-        *   Reactome
-        *   MSigDB (hallmark gene sets, etc.)
-    *   Statistical methods for enrichment analysis (e.g., hypergeometric test, GSEA).
-    *   Interactive visualizations:
-        *   Bar plots/dot plots of enriched terms.
-        *   Enrichment maps/networks.
-        *   Visualizing DEGs on pathways (e.g., Pathview integration).
-    *   Output: Tables of enriched pathways/terms, visualization files.
-*   **Starting Point:** Utilize existing scripts using packages like `clusterProfiler`, `fgsea`, `gage`.
+    *   **Gene Filtering:**
+        *   Low-expression gene filtering with multiple strategies
+        *   Group-aware filtering based on experimental design
+        *   Expression threshold options (raw counts, CPM)
+        *   Filtering impact visualization and statistics
+    *   **Normalization Methods:**
+        *   Library size-based: Total Count, DESeq2 median of ratios, Upper Quartile, RLE
+        *   Distribution transformations: CPM, TMM, VST, rlog, Quantile normalization
+        *   Data-driven method recommendations
+    *   **Normalization Evaluation:**
+        *   Before/after comparison plots
+        *   Library size distribution analysis
+        *   Batch effect assessment
+        *   Post-normalization distribution analysis
+        *   PCA comparison (pre vs post normalization)
 
-### 3.4. Module 4: Advanced Visualization & Custom Plots Tool
+### 3.4. Data Export & Reporting
 
-*   **Objective:** Provide a flexible platform for generating publication-quality custom visualizations beyond the standard plots in other modules.
+*   **Objective:** Provide clean data and comprehensive documentation for downstream analysis.
 *   **Key Features:**
-    *   Input: Various data types generated from previous modules (e.g., count matrices, DEG lists, pathway results).
-    *   Customizable plotting options for:
-        *   Gene expression profiles (e.g., specific genes across samples/conditions).
-        *   Sample correlation heatmaps.
-        *   Network visualizations (e.g., gene co-expression networks, protein-protein interaction networks if applicable).
-        *   Integrative plots combining different data types.
-    *   Interface for adjusting plot aesthetics (colors, labels, themes).
-    *   Options for exporting plots in various formats (SVG, PDF, PNG).
-*   **Starting Point:** Consolidate and expand upon various custom plotting scripts.
+    *   **Data Export:**
+        *   Filtered and normalized count matrices
+        *   Quality-controlled metadata
+        *   Analysis parameters and session information
+        *   Multiple export formats (CSV, RDS, Excel)
+    *   **QC Reports:**
+        *   Comprehensive HTML reports with all QC plots and statistics
+        *   Parameter tracking and analysis reproducibility information
+        *   Recommendations for downstream analysis
 
 ## 4. Technology Stack
 
 *   **Core Language:** R
 *   **Web Framework:** RShiny
-*   **Key R Packages:** `shiny`, `tidyverse` (for data manipulation and plotting with `ggplot2`), `DT` (for interactive tables), specific bioinformatics packages for each module (e.g., `DESeq2`, `edgeR`, `clusterProfiler`, `FastQC` R wrappers if available).
+*   **Key R Packages:** 
+    *   Interface: `shiny`, `shinydashboard`, `DT`, `plotly`
+    *   Data manipulation: `tidyverse`, `dplyr`, `readr`
+    *   Bioinformatics: `DESeq2`, `edgeR`, `limma`
+    *   Visualization: `ggplot2`, `pheatmap`, `ggrepel`
+    *   Statistics: `stats`, `matrixStats`
+    *   Reporting: `rmarkdown`, `knitr`
 *   **Version Control:** Git / GitHub
 
 ## 5. Development Workflow & Milestones
 
-1.  **Phase 1: Detailed Planning & UI/UX Mockups (for each module)**
-    *   Define specific inputs, outputs, and parameters for each feature.
-    *   Create wireframes and mockups for the user interface of each module.
-2.  **Phase 2: Module 1 Development (QC & Pre-processing)**
-    *   Backend logic implementation.
-    *   Shiny UI development.
-    *   Testing and refinement.
-3.  **Phase 3: Module 2 Development (DEG Analysis)**
-    *   Backend logic implementation.
-    *   Shiny UI development.
-    *   Testing and refinement.
-4.  **Phase 4: Module 3 Development (Pathway Analysis)**
-    *   Backend logic implementation.
-    *   Shiny UI development.
-    *   Testing and refinement.
-5.  **Phase 5: Module 4 Development (Advanced Visualization)**
-    *   Backend logic implementation.
-    *   Shiny UI development.
-    *   Testing and refinement.
-6.  **Phase 6: Integration & System-wide Testing**
-    *   Ensuring smooth data flow between modules (if direct integration is planned, or clear export/import instructions).
-    *   Comprehensive testing of the entire suite.
-    *   Documentation finalization (user guides, developer notes).
-7.  **Phase 7: Deployment & Maintenance**
-    *   Consider deployment options (e.g., shinyapps.io, internal server).
-    *   Ongoing bug fixes and feature updates.
+1.  **Phase 1: Core QC Tool Development** ✓
+    *   Tab 1: Data Input & Validation (Complete)
+    *   Tab 2: QC Plots & Summaries (Complete)
+    *   Tab 3: Filtering & Normalization (Complete)
 
-## 6. Documentation Plan
+2.  **Phase 2: Enhancement & Optimization**
+    *   Performance optimization for large datasets
+    *   Additional normalization methods
+    *   Enhanced error handling and user feedback
+    *   Comprehensive testing with diverse datasets
 
-*   **User Manual:** Detailed guide for users on how to use each module, including input formats, parameter explanations, and interpretation of results.
-*   **Developer Documentation:** Notes on code structure, dependencies, and how to extend the modules (if applicable for future development).
-*   **Change Log:** Track versions and changes made to the application.
-*   **This `framework_roadmap.md`:** High-level project plan.
+3.  **Phase 3: Reporting & Export Features**
+    *   Automated QC report generation
+    *   Multiple export format support
+    *   Parameter tracking and session management
+    *   Integration testing with downstream tools
 
-## 7. Future Considerations
+4.  **Phase 4: Documentation & User Experience**
+    *   Comprehensive user manual
+    *   Tutorial datasets and workflows
+    *   Best practices documentation
+    *   Performance benchmarking
 
-*   Containerization (Docker) for easier deployment and reproducibility.
-*   Integration with cloud computing resources for heavy computations.
-*   Support for other sequencing data types (e.g., single-cell RNA-seq, although this would be a major expansion).
-*   User authentication and data management for multi-user environments.
+5.  **Phase 5: Deployment & Maintenance**
+    *   Production deployment setup
+    *   Continuous integration/deployment
+    *   User feedback integration
+    *   Regular updates and maintenance
 
-This roadmap provides a general framework. More detailed plans will be developed for each module before its implementation begins. 
+## 6. Interface with Other Analysis Tools
+
+### 6.1. Data Export Standards
+*   **Standardized Output Formats:** Ensure exported data follows standard conventions for easy import into other tools
+*   **Metadata Preservation:** Maintain sample metadata and experimental design information
+*   **Parameter Documentation:** Include all QC and normalization parameters in exports
+
+### 6.2. Future Tool Integration
+*   **Differential Expression Tool:** Will accept QC-processed data for DEG analysis
+*   **Pathway Analysis Tool:** Will work with DEG results from the differential expression tool
+*   **Visualization Tool:** Will create custom plots from any stage of the analysis pipeline
+
+## 7. Documentation Plan
+
+*   **User Manual:** Comprehensive guide covering all QC features, parameter explanations, and best practices
+*   **Developer Documentation:** Code structure, function documentation, and extension guidelines
+*   **QC Best Practices Guide:** Recommendations for different experimental designs and data types
+*   **Tutorial Workflows:** Step-by-step examples with sample datasets
+*   **Change Log:** Version tracking and feature updates
+
+## 8. Future Considerations
+
+*   **Performance Optimization:** Handle large datasets (>50,000 genes, >1,000 samples)
+*   **Additional QC Methods:** Integration of new QC metrics and visualization methods
+*   **Batch Effect Correction:** Advanced batch effect detection and correction methods
+*   **Single-Cell Compatibility:** Potential adaptation for single-cell RNA-seq QC
+*   **Cloud Integration:** Deployment on cloud platforms for high-performance computing
+*   **API Development:** RESTful API for programmatic access and integration with other tools
+
+## 9. Success Metrics
+
+*   **User Adoption:** Number of users and analysis sessions
+*   **Data Quality:** Improvement in downstream analysis success rates
+*   **User Satisfaction:** Feedback scores and feature requests
+*   **Performance:** Processing time and memory usage benchmarks
+*   **Reproducibility:** Consistent results across different users and datasets
+
+This focused QC tool will serve as the robust foundation for a suite of RNA-seq analysis applications, ensuring that all downstream analyses start with high-quality, well-characterized data. 
