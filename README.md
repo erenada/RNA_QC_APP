@@ -222,8 +222,6 @@ The example data represents a multi-factorial experimental design with:
 
 ## Development Roadmap
 
-For a detailed development plan, see the [Framework Roadmap](framework_roadmap.md).
-
 ### Completed
 - Module 1: QC & Pre-processing Tool (v2.0.0)
 - Comprehensive documentation system
