@@ -1,6 +1,6 @@
 # Modular Bulk RNA-seq Analysis RShiny Tool Suite
 
-[![R Package Check](https://github.com/hms-immunology/RNA_Processing_APP/workflows/R%20Package%20Check/badge.svg)](https://github.com/hms-immunology/RNA_Processing_APP/actions)
+[![R Package Check](https://github.com/erenada/RNA_QC_APP/workflows/R%20Package%20Check/badge.svg)](https://github.com/erenada/RNA_QC_APP/actions)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 [![R Version](https://img.shields.io/badge/R-%3E%3D4.0.0-blue.svg)](https://www.r-project.org/)
 
