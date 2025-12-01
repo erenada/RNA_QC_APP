@@ -7,7 +7,6 @@
 #' @import shiny
 #' @import ggplot2
 #' @import plotly
-#' @import pheatmap
 #' @import DESeq2
 #' @import edgeR
 #' @import dplyr
@@ -31,21 +30,25 @@ mod_qc_plots_server <- function(id, shared_data) {
     
     # Update plot data when shared data changes
     observe({
-      message("\n=== Data Transformation Debug ===")
-      message("Checking shared_data availability:")
-      message("- data_processed flag: ", !is.null(shared_data$data_processed))
-      message("- processed_counts available: ", !is.null(shared_data$processed_counts))
-      message("- processed_metadata available: ", !is.null(shared_data$processed_metadata))
+      if (isTRUE(getOption("app.debug"))) {
+        message("\n=== Data Transformation Debug ===")
+        message("Checking shared_data availability:")
+        message("- data_processed flag: ", !is.null(shared_data$data_processed))
+        message("- processed_counts available: ", !is.null(shared_data$processed_counts))
+        message("- processed_metadata available: ", !is.null(shared_data$processed_metadata))
+      }
       
       req(shared_data$data_processed)
       req(shared_data$processed_counts)
       req(shared_data$processed_metadata)
       
       counts_matrix <- shared_data$processed_counts
-      message("\nCounts Matrix Info:")
-      message("- Dimensions: ", paste(dim(counts_matrix), collapse=" x "))
-      message("- Class: ", class(counts_matrix))
-      message("- Sample names: ", paste(head(colnames(counts_matrix)), collapse=", "))
+      if (isTRUE(getOption("app.debug"))) {
+        message("\nCounts Matrix Info:")
+        message("- Dimensions: ", paste(dim(counts_matrix), collapse=" x "))
+        message("- Class: ", class(counts_matrix))
+        message("- Sample names: ", paste(head(colnames(counts_matrix)), collapse=", "))
+      }
       
       raw_counts_for_tab(counts_matrix)
       
@@ -155,193 +158,12 @@ mod_qc_plots_server <- function(id, shared_data) {
       ordering = FALSE
     ))
     
-    # PCA Plot UI Elements
-    output$pca_color_by_ui <- renderUI({
-      req(shared_data$processed_metadata)
-      metadata_cols <- colnames(shared_data$processed_metadata)
-      # Choose first metadata column as default, or "none" if no metadata
-      default_selection <- if (length(metadata_cols) > 0) metadata_cols[1] else "none"
-      
-      selectInput(
-        session$ns("pca_color_by"),
-        "Color by:",
-        choices = c("None" = "none", "Sample" = "Sample", metadata_cols),
-        selected = default_selection
-      )
-    })
+    # Initialize PCA submodule using current plot_data
+    pca_module <- mod_pca_server("pca", shared_data, plot_data)
     
-    # PCA Results Storage
-    pca_results_data <- reactiveVal(NULL)
+    # PCA results storage provided by submodule
     
-    # 2D PCA Plot
-    output$pca_plot_2d <- renderPlotly({
-      req(plot_data(), 
-          input$pca_pc_x, 
-          input$pca_pc_y)
-      
-      # Calculate PCA
-      pca_res <- tryCatch({
-        perform_pca_func(
-          counts_data = plot_data(),
-          center = TRUE,
-          scale. = TRUE
-        )
-      }, error = function(e) {
-        message("Error in PCA calculation: ", e$message)
-        return(NULL)
-      })
-      
-      # Check if PCA calculation was successful
-      if (is.null(pca_res)) {
-        return(plotly_empty(type = "scatter", mode = "markers") %>%
-               layout(title = "Error: PCA calculation failed"))
-      }
-      
-      pca_results_data(pca_res)
-      
-      # Get color variable
-      color_var <- NULL
-      if (!is.null(input$pca_color_by) && input$pca_color_by != "none") {
-        color_var <- input$pca_color_by
-      }
-      
-      # Plot 2D PCA
-      plot_pca_func(
-        pca_results = pca_res,
-        pc_x_choice = input$pca_pc_x,
-        pc_y_choice = input$pca_pc_y,
-        metadata_df = shared_data$processed_metadata,
-        color_var = color_var,
-        show_labels = input$pca_show_labels,
-        plot_type = "2d"
-      )
-    })
-    
-    # 3D PCA Plot
-    output$pca_plot_3d <- renderPlotly({
-      req(plot_data(), 
-          input$pca_pc_x, 
-          input$pca_pc_y)
-      
-      # Use existing PCA results or calculate if not available
-      pca_res <- pca_results_data()
-      if (is.null(pca_res)) {
-        pca_res <- tryCatch({
-          perform_pca_func(
-            counts_data = plot_data(),
-            center = TRUE,
-            scale. = TRUE
-          )
-        }, error = function(e) {
-          message("Error in PCA calculation: ", e$message)
-          return(NULL)
-        })
-        
-        # Check if PCA calculation was successful
-        if (is.null(pca_res)) {
-          return(plotly_empty(type = "scatter3d", mode = "markers") %>%
-                 layout(title = "Error: PCA calculation failed"))
-        }
-        
-        pca_results_data(pca_res)
-      }
-      
-      # Get PC3 (or next PC if PC1 and PC2 are selected)
-      pc_z_choice <- paste0("PC", as.numeric(gsub("PC", "", input$pca_pc_y)) + 1)
-      if (pc_z_choice == input$pca_pc_x || pc_z_choice == input$pca_pc_y) {
-        pc_z_choice <- "PC3"
-      }
-      
-      # Get color variable
-      color_var <- NULL
-      if (!is.null(input$pca_color_by) && input$pca_color_by != "none") {
-        color_var <- input$pca_color_by
-      }
-      
-      # Plot 3D PCA
-      plot_pca_func(
-        pca_results = pca_res,
-        pc_x_choice = input$pca_pc_x,
-        pc_y_choice = input$pca_pc_y,
-        pc_z_choice = pc_z_choice,
-        metadata_df = shared_data$processed_metadata,
-        color_var = color_var,
-        show_labels = FALSE,  # Labels don't work well in 3D
-        plot_type = "3d"
-      )
-    })
-    
-    # PCA Variance Explained Text
-    output$pca_variance_explained_text <- renderUI({
-      req(pca_results_data())
-      pca_res_obj <- pca_results_data()
-      
-      # Calculate cumulative variance
-      var_explained <- pca_res_obj$var_explained[1:min(10, length(pca_res_obj$var_explained))]
-      cum_var_explained <- cumsum(var_explained)
-      
-      # Create a more detailed summary
-      tagList(
-        h4("PCA Statistics", class = "section-title"),
-        fluidRow(
-          column(width = 6,
-            tags$div(
-              style = "margin-top: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 5px; height: 100%;",
-              tags$p(strong("Individual PC Contributions:"),
-                    style = "margin-bottom: 10px;"),
-              tags$ul(
-                style = "list-style-type: none; padding-left: 0;",
-                lapply(1:length(var_explained), function(i) {
-                  tags$li(
-                    sprintf("PC%d: %.1f%% variance", i, var_explained[i]),
-                    style = "margin-bottom: 5px;"
-                  )
-                })
-              )
-            )
-          ),
-          column(width = 6,
-            tags$div(
-              style = "margin-top: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 5px; height: 100%;",
-              tags$p(strong("Cumulative Variance Explained:"),
-                    style = "margin-bottom: 10px;"),
-              tags$ul(
-                style = "list-style-type: none; padding-left: 0;",
-                lapply(1:length(cum_var_explained), function(i) {
-                  tags$li(
-                    sprintf("PC1 to PC%d: %.1f%%", i, cum_var_explained[i]),
-                    style = "margin-bottom: 5px;"
-                  )
-                })
-              )
-            )
-          )
-        )
-      )
-    })
-    
-    # Correlation Heatmap UI
-    output$cor_annotation_ui <- renderUI({
-      message("\n=== Rendering Correlation Annotation UI ===")
-      req(shared_data$processed_metadata)
-      
-      metadata_cols <- colnames(shared_data$processed_metadata)
-      message("Available metadata columns: ", paste(metadata_cols, collapse=", "))
-      
-      # Exclude any columns that are already used as filters
-      if (!is.null(input$filter_criteria) && length(input$filter_criteria) > 0) {
-        # Don't exclude filter columns from annotations
-        # They can be useful for visualization even when filtered
-        # metadata_cols <- setdiff(metadata_cols, input$filter_criteria)
-      }
-      
-      checkboxGroupInput(
-        session$ns("cor_annotations"),
-        "Annotate Heatmap with:",
-        choices = metadata_cols,
-        selected = NULL # Allows no annotations initially
-      )
-    })
+    # Correlation annotations UI moved to correlation submodule
     
     # Reactive value to store parameters for the correlation plot
     correlation_plot_params <- reactiveVal(NULL)
@@ -599,25 +421,9 @@ mod_qc_plots_server <- function(id, shared_data) {
       )
     })
     
-    # Refresh Button Handler
-    observeEvent(input$refresh_qc_plots_btn, {
-      # Force recalculation of reactive values
-      plot_data(plot_data())
-      pca_results_data(NULL)
-    })
+    # Removed refresh handler; use explicit update actions per section
     
-    # Reactive observer to provide correlation method guidance based on data source
-    observeEvent(input$correlation_data_source, {
-      if (!is.null(input$correlation_data_source)) {
-        if (input$correlation_data_source == "raw_counts") {
-          # For raw counts, suggest Spearman correlation
-          updateSelectInput(session, "correlation_method", selected = "spearman")
-        } else {
-          # For log2(CPM+1) data, suggest Pearson correlation
-          updateSelectInput(session, "correlation_method", selected = "pearson")
-        }
-      }
-    })
+    # Removed data source guidance; only processed/log2(CPM+1) or normalized data are used
     
     # Observer to handle correlation plot updates
     observeEvent(input$update_correlation, {
@@ -626,43 +432,20 @@ mod_qc_plots_server <- function(id, shared_data) {
       # Validate required inputs
       req(shared_data$processed_metadata)
       
-      # Determine data source based on user selection
+      # Determine data source: use normalized counts if present; otherwise use current plot data (log2(CPM+1))
       correlation_data <- NULL
       data_description <- ""
-      
-      if (!is.null(input$correlation_data_source)) {
-        if (input$correlation_data_source == "raw_counts") {
-          # Use raw count matrix
-          req(shared_data$raw_counts)
-          correlation_data <- shared_data$raw_counts
-          data_description <- "raw count matrix"
-          message("Using raw count matrix for correlation analysis")
-        } else {
-          # Use log2(CPM+1) transformed data (default)
-          if (!is.null(shared_data$normalized_counts) && 
-              !is.null(shared_data$normalization_status_flag) && 
-              shared_data$normalization_status_flag) {
-            # Use normalized data if available
-            correlation_data <- shared_data$normalized_counts
-            data_description <- paste(shared_data$normalization_method_used, "normalized data")
-            message("Using normalized data for correlation analysis")
-          } else {
-            # Use log2(CPM+1) transformed data
-            req(shared_data$raw_counts)
-            counts_matrix <- shared_data$raw_counts
-            message("Converting raw counts to log2(CPM+1) for correlation analysis")
-            cpm_counts <- edgeR::cpm(counts_matrix, log = FALSE)
-            correlation_data <- log2(cpm_counts + 1)
-            data_description <- "log2(CPM+1) transformed data"
-            message("log2(CPM+1) transformation completed")
-          }
-        }
+      if (!is.null(shared_data$normalized_counts) && 
+          !is.null(shared_data$normalization_status_flag) && 
+          shared_data$normalization_status_flag) {
+        correlation_data <- shared_data$normalized_counts
+        data_description <- paste(shared_data$normalization_method_used, "normalized data")
+        if (isTRUE(getOption("app.debug"))) message("Using normalized data for correlation analysis")
       } else {
-        # Fallback to plot_data if correlation_data_source is not available
         req(plot_data())
         correlation_data <- plot_data()
-        data_description <- "current plot data"
-        message("Using current plot data for correlation analysis (fallback)")
+        data_description <- "log2(CPM+1) transformed data"
+        if (isTRUE(getOption("app.debug"))) message("Using log2(CPM+1) transformed data for correlation analysis")
       }
       
       # Validate correlation data
@@ -755,7 +538,7 @@ mod_qc_plots_server <- function(id, shared_data) {
         message("Calculating correlation using method: ", input$correlation_method)
         message("Input data for correlation: ", paste(dim(filtered_data), collapse=" x "))
         
-        cor_results <- calculate_correlation_func(filtered_data, input$correlation_method)
+        cor_results <- calculate_correlation_func(filtered_data, input$correlation_method, compute_p = isTRUE(input$compute_p_values))
         
         if (!is.null(cor_results) && !is.null(cor_results$correlation)) {
           message("Correlation calculation successful")
@@ -976,7 +759,7 @@ mod_qc_plots_server <- function(id, shared_data) {
         plot_correlation_heatmap_func(
           cor_results = plot_params$cor_results,
           metadata_df = plot_params$metadata_for_annot,
-          annotation_cols = NULL,
+          annotation_cols = input$cor_annotations,
           color_scheme = color_scheme,
           show_significance = show_significance,
           show_values = show_values,
@@ -998,84 +781,18 @@ mod_qc_plots_server <- function(id, shared_data) {
       message("Heatmap rendering completed")
     }, height = 550)
     
-    # Correlation Analysis (This part defines correlation_results for stats text)
-    correlation_results <- reactiveVal(NULL)
-    correlation_data_description <- reactiveVal("No data selected")
+    # Initialize Correlation submodule using current plot_data
+    corr_module <- mod_correlation_server("corr", shared_data, plot_data)
     
-    # Download Handlers
-    output$download_pca_plot <- downloadHandler(
-      filename = function() {
-        paste0("pca_plot_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".pdf")
-      },
-      content = function(file) {
-        # Create PCA plot for download
-        pca_res <- pca_results_data()
-        
-        # Create the plot using ggplot2 directly (not plotly)
-        plot_data <- data.frame(
-          PC1 = pca_res$pca_object$x[, as.numeric(gsub("PC", "", input$pca_pc_x))],
-          PC2 = pca_res$pca_object$x[, as.numeric(gsub("PC", "", input$pca_pc_y))],
-          Sample = rownames(pca_res$pca_object$x)
-        )
-        
-        # Add group information if available
-        if (input$pca_color_by != "none") {
-          # Special case: if color_var is "Sample", use sample names
-          if (input$pca_color_by == "Sample") {
-            plot_data$group <- plot_data$Sample
-          } else {
-            # Check if the color_var exists in metadata
-            if (input$pca_color_by %in% colnames(shared_data$processed_metadata)) {
-              # Match samples to metadata and get the color variable
-              plot_data$group <- shared_data$processed_metadata[as.character(plot_data$Sample), input$pca_color_by]
-            } else {
-              # Fallback if column doesn't exist
-              plot_data$group <- "All Samples"
-            }
-          }
-        } else {
-          plot_data$group <- "All Samples"
-        }
-        
-        # Handle NA values in group
-        if (any(is.na(plot_data$group))) {
-          plot_data$group[is.na(plot_data$group)] <- "NA"
-        }
-        
-        # Create the basic 2D plot
-        p <- ggplot(plot_data, aes(x = PC1, y = PC2, color = group)) +
-          geom_point(size = 3) +
-          labs(title = "PCA Plot",
-               x = sprintf("PC%s (%.1f%%)", 
-                          gsub("PC", "", input$pca_pc_x), 
-                          pca_res$var_explained[as.numeric(gsub("PC", "", input$pca_pc_x))]),
-               y = sprintf("PC%s (%.1f%%)", 
-                          gsub("PC", "", input$pca_pc_y),
-                          pca_res$var_explained[as.numeric(gsub("PC", "", input$pca_pc_y))])) +
-          theme_minimal() +
-          theme(legend.title = element_blank())
-        
-        # Add labels if requested
-        if (input$pca_show_labels) {
-          p <- p + geom_text_repel(aes(label = Sample), size = 3, box.padding = 0.5)
-        }
-        
-        # Save to file
-        ggsave(file, plot = p, width = 8, height = 6)
-      }
-    )
-    
+    # Download Handlers (correlation only; PCA downloads moved into PCA submodule)
     output$download_heatmap <- downloadHandler(
       filename = function() {
         paste0("correlation_heatmap_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".pdf")
       },
       content = function(file) {
-        # Use the current correlation results that were calculated with the selected data source
-        cor_results <- correlation_results()
-        if (is.null(cor_results)) {
-          # Fallback: calculate correlation with current plot data if no results available
-          cor_results <- calculate_correlation_func(plot_data(), input$correlation_method)
-        }
+        # Use current correlation results from submodule
+        cor_results <- corr_module$correlation_results()
+        if (is.null(cor_results)) cor_results <- calculate_correlation_func(plot_data(), input$correlation_method)
         
         save_heatmap_plot_func(
           cor_results,
@@ -1087,95 +804,7 @@ mod_qc_plots_server <- function(id, shared_data) {
       }
     )
     
-    # PCA Statistics Download Handler
-    output$download_pca_stats <- downloadHandler(
-      filename = function() {
-        paste0("pca_statistics_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
-      },
-      content = function(file) {
-        req(pca_results_data())
-        pca_res <- pca_results_data()
-        
-        # Get PC numbers from UI
-        pc_x_num <- as.numeric(gsub("PC", "", input$pca_pc_x))
-        pc_y_num <- as.numeric(gsub("PC", "", input$pca_pc_y))
-        
-        # Get PC3 (or next PC for 3D plot)
-        pc_z_num <- as.numeric(gsub("PC", "", input$pca_pc_y)) + 1
-        if (pc_z_num == pc_x_num || pc_z_num == pc_y_num) {
-          pc_z_num <- 3
-        }
-        
-        # Create data frames for PCA statistics
-        var_explained <- pca_res$var_explained[1:min(20, length(pca_res$var_explained))]
-        cum_var_explained <- cumsum(var_explained)
-        
-        # Combine statistics
-        pca_stats <- data.frame(
-          PC = paste0("PC", 1:length(var_explained)),
-          Individual_Variance_Pct = round(var_explained, 2),
-          Cumulative_Variance_Pct = round(cum_var_explained, 2),
-          row.names = NULL
-        )
-        
-        # Add gene loadings for top contributing genes
-        loadings <- pca_res$pca_object$rotation[,1:length(var_explained)]
-        contributions <- sweep(loadings^2, 2, pca_res$pca_object$sdev[1:length(var_explained)]^2, "*")
-        
-        # Create separate data frames for the top genes contributing to each PC
-        top_genes_list <- list()
-        for (i in 1:min(10, ncol(contributions))) {
-          pc_contributions <- contributions[, i]
-          # Sort genes by contribution
-          sorted_idx <- order(pc_contributions, decreasing = TRUE)
-          # Get top 50 genes
-          top_idx <- sorted_idx[1:min(50, length(sorted_idx))]
-          # Create data frame
-          top_genes_df <- data.frame(
-            Gene = rownames(loadings)[top_idx],
-            Contribution_Pct = round(pc_contributions[top_idx]/sum(pc_contributions)*100, 2)
-          )
-          # Add to list
-          top_genes_list[[paste0("PC", i, "_Top_Genes")]] <- top_genes_df
-        }
-        
-        # Add specific information about the displayed PCs (2D and 3D)
-        pc_display_info <- data.frame(
-          View = c("2D_X_Axis", "2D_Y_Axis", "3D_Z_Axis"),
-          PC = c(paste0("PC", pc_x_num), paste0("PC", pc_y_num), paste0("PC", pc_z_num)),
-          Variance_Explained_Pct = c(
-            round(var_explained[pc_x_num], 2),
-            round(var_explained[pc_y_num], 2),
-            round(var_explained[pc_z_num], 2)
-          )
-        )
-        
-        # Create a list of all data frames to write
-        output_list <- list(
-          PCA_Display_Info = pc_display_info,
-          PCA_Variance_Statistics = pca_stats
-        )
-        
-        # Add top genes for each PC to the output list
-        output_list <- c(output_list, top_genes_list)
-        
-        # Write to CSV - use write.csv for each data frame separately
-        temp_dir <- tempdir()
-        zip_file <- file.path(temp_dir, "pca_statistics.zip")
-        
-        # Create CSV files for each data frame
-        for (name in names(output_list)) {
-          csv_file <- file.path(temp_dir, paste0(name, ".csv"))
-          write.csv(output_list[[name]], file = csv_file, row.names = FALSE)
-        }
-        
-        # Create a zip file containing all CSV files
-        zip(zip_file, files = list.files(temp_dir, pattern = "\\.csv$", full.names = TRUE))
-        
-        # Copy the zip file to the requested output file
-        file.copy(zip_file, file)
-      }
-    )
+    # PCA statistics download is handled inside the PCA submodule
     
     # Add reactive value to track QC completion status
     qc_completion_status <- reactiveVal(FALSE)
@@ -1184,8 +813,8 @@ mod_qc_plots_server <- function(id, shared_data) {
     observe({
       # Check if all necessary QC components are available
       req(plot_data(),
-          pca_results_data(),
-          correlation_results())
+          pca_module$pca_results(),
+          corr_module$correlation_results())
       
       # Update completion status
       qc_completion_status(TRUE)
@@ -1213,8 +842,8 @@ mod_qc_plots_server <- function(id, shared_data) {
       qc_completion_status = qc_completion_status,
       processed_data = plot_data,
       qc_results = list(
-        pca = pca_results_data,
-        correlation = correlation_results
+        pca = pca_module$pca_results,
+        correlation = corr_module$correlation_results
       )
     ))
   })

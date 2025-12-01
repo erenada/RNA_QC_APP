@@ -90,7 +90,7 @@ create_status_message <- function(message, status = "success", icon_name = NULL)
     "info" = "#17a2b8"
   )
   
-  color <- color_map[[status]] %||% color_map[["info"]]
+  color <- if (!is.null(color_map[[status]])) color_map[[status]] else color_map[["info"]]
   
   div(
     class = paste("status-message", paste0("status-", status)),
@@ -116,70 +116,3 @@ create_completion_checker <- function(completion_conditions) {
 }
 
 # CSS for proceed sections (to be included in main CSS file)
-proceed_section_css <- "
-.proceed-section {
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.proceed-section:hover {
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-.proceed-content {
-  animation: fadeIn 0.5s ease-in;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.status-message {
-  transition: all 0.3s ease;
-}
-
-.status-success { 
-  background-color: rgba(40, 167, 69, 0.1); 
-  padding: 10px; 
-  border-radius: 4px; 
-  border-left: 3px solid #28a745;
-}
-
-.status-warning { 
-  background-color: rgba(255, 193, 7, 0.1); 
-  padding: 10px; 
-  border-radius: 4px; 
-  border-left: 3px solid #ffc107;
-}
-
-.status-error { 
-  background-color: rgba(220, 53, 69, 0.1); 
-  padding: 10px; 
-  border-radius: 4px; 
-  border-left: 3px solid #dc3545;
-}
-
-.status-info { 
-  background-color: rgba(23, 162, 184, 0.1); 
-  padding: 10px; 
-  border-radius: 4px; 
-  border-left: 3px solid #17a2b8;
-}
-
-@media (max-width: 768px) {
-  .proceed-content {
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .proceed-status {
-    min-width: 100% !important;
-    margin-bottom: 15px;
-  }
-  
-  .proceed-button button {
-    width: 100% !important;
-  }
-}
-" 

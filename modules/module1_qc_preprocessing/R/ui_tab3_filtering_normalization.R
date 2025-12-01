@@ -95,12 +95,12 @@ mod_filtering_normalization_ui <- function(id) {
             div(class = "action-buttons",
               actionButton(ns("apply_filters_btn"),
                 "Apply Filters",
-                class = "btn-primary",
+                class = "btn btn-primary btn-lg",
                 icon = icon("filter")
               ),
               actionButton(ns("reset_filters_btn"),
                 "Reset",
-                class = "btn-default",
+                class = "btn btn-default btn-lg",
                 icon = icon("undo")
               )
             )
@@ -178,12 +178,12 @@ mod_filtering_normalization_ui <- function(id) {
             div(class = "action-buttons",
               actionButton(ns("apply_normalization_btn"),
                 "Apply Normalization & Evaluate",
-                class = "btn-success",
+                class = "btn btn-success btn-lg",
                 icon = icon("play")
               ),
               actionButton(ns("reset_normalization_btn"),
                 "Reset",
-                class = "btn-default",
+                class = "btn btn-default btn-lg",
                 icon = icon("undo")
               )
             )
@@ -318,8 +318,7 @@ mod_filtering_normalization_ui <- function(id) {
           div(class = "data-preview-controls",
             downloadButton(ns("download_current_data"),
                          "Download Current Data"),
-            downloadButton(ns("download_session_report"),
-                         "Download Analysis Report")
+            NULL
           ),
           DTOutput(ns("main_data_preview_dt"))
         )

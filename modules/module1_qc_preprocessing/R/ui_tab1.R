@@ -12,9 +12,6 @@ NULL
 # Source shared UI components
 source("modules/module1_qc_preprocessing/R/shared_ui_components.R")
 
-# Load required packages - make sure they're available
-if (!require("shiny")) install.packages("shiny")
-if (!require("DT")) install.packages("DT")
 library(shiny)
 library(DT)
 
@@ -105,7 +102,7 @@ mod_input_validation_ui <- function(id) {
               actionButton(ns("analyze_files_btn"),
                          "Validate Files",
                          icon = icon("check-circle"),
-                         class = "btn-primary btn-lg btn-block"))
+                         class = "btn btn-primary btn-lg btn-block"))
         ),
         
         # Section 2: Data Analysis Results (Initially Hidden)
@@ -172,7 +169,7 @@ mod_input_validation_ui <- function(id) {
                 actionButton(ns("process_data_btn"),
                            "Process Data",
                            icon = icon("play-circle"),
-                           class = "btn-success btn-lg btn-block"))
+                           class = "btn btn-success btn-lg btn-block"))
           )
         )
       ),

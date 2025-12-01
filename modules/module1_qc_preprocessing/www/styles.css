@@ -314,6 +314,29 @@
     margin-top: 8px;
 }
 
+/* About Tab Boxes */
+.about-box {
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+}
+
+.about-box.info {
+    background-color: #e8f4fd;
+    border-left: 4px solid #1f77b4;
+}
+
+.about-box.warning {
+    background-color: #fff3cd;
+    border-left: 3px solid #ffc107;
+}
+
+.about-box.workflow {
+    background-color: #e8f5e8;
+    border-left: 4px solid #28a745;
+    padding: 20px;
+}
+
 .data-summary-box {
   background: #fff;
   border-radius: 8px;

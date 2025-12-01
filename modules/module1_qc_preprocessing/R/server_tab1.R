@@ -4,11 +4,6 @@
 # Author: Eren Ada, PhD
 # Date: Created using the current date from system
 
-# Load required packages - make sure they're available
-if (!require("shiny")) install.packages("shiny")
-if (!require("DT")) install.packages("DT")
-if (!require("ggplot2")) install.packages("ggplot2")
-if (!require("plotly")) install.packages("plotly")
 library(shiny)
 library(DT)
 library(ggplot2)
@@ -116,12 +111,6 @@ mod_input_validation_server <- function(id, parent_session) {
           # Convert data to matrix if it isn't already
           data_matrix <- as.matrix(data)
           
-          # Create aggregation function that handles both numeric and non-numeric data
-          safe_sum <- function(x) {
-            if(is.numeric(x)) sum(x, na.rm = TRUE)
-            else x[1]  # For non-numeric columns, take first value
-          }
-          
           # Split data by gene IDs and apply sum
           unique_genes <- unique(gene_ids)
           result_matrix <- t(sapply(unique_genes, function(g) {
@@ -215,6 +204,7 @@ mod_input_validation_server <- function(id, parent_session) {
           
           if(has_decimals) {
             counts_data[, numeric_cols] <- round(counts_data[, numeric_cols], 0)
+            rv$non_integer_warning <- TRUE
             showNotification(
               "Decimal values detected in count matrix. All values have been rounded to integers.",
               type = "warning",
@@ -630,10 +620,12 @@ mod_input_validation_server <- function(id, parent_session) {
                 options = list(
                   scrollX = TRUE,
                   pageLength = 10,
-                  lengthMenu = list(c(10, 25, 50, -1), c('10', '25', '50', 'All')),
+                  lengthMenu = list(c(10, 25, 50), c('10', '25', '50')),
+                  dom = 'lrtip',
                   searchHighlight = TRUE,
                   search = list(regex = TRUE, caseInsensitive = TRUE)
-                ))
+                ),
+                class = 'cell-border stripe')
       
       # Apply integer formatting to all numeric columns
       if(length(numeric_cols) > 0) {
@@ -918,20 +910,31 @@ mod_input_validation_server <- function(id, parent_session) {
       },
       content = function(file) {
         req(rv$has_duplicates)
-        
-        # Create a detailed dataframe with all duplicate genes
-        dup_genes <- unique(rv$original_gene_ids[rv$original_gene_ids %in% rv$duplicate_genes])
-        
+        req(rv$original_counts_data)
+
+        # Work off the original uploaded table to avoid index drift after filtering/renaming
+        original_df <- rv$original_counts_data
+        # Identify numeric count columns
+        count_cols <- which(sapply(original_df, is.numeric))
+        if (length(count_cols) == 0) {
+          # Fallback: treat all but first column as numeric if types were coerced
+          count_cols <- setdiff(seq_len(ncol(original_df)), 1L)
+        }
+
+        # List of duplicated gene IDs in original space
+        dup_genes <- unique(original_df[[1]][original_df[[1]] %in% rv$duplicate_genes])
+
         # Prepare data for CSV
-        result <- data.frame()
-        
+        result <- data.frame(stringsAsFactors = FALSE)
+
         for (gene in dup_genes) {
-          # Get all rows for this gene
-          gene_rows <- which(rv$original_gene_ids == gene)
-          # Get expression for each occurrence
-          expressions <- rowSums(rv$raw_counts_data[gene_rows, , drop = FALSE])
-          
-          # Add rows for each occurrence
+          # Get all rows for this gene in the original data
+          gene_rows <- which(original_df[[1]] == gene)
+          if (length(gene_rows) == 0) next
+          # Sum counts per occurrence across numeric columns
+          expressions <- apply(original_df[gene_rows, count_cols, drop = FALSE], 1, function(x) sum(as.numeric(x), na.rm = TRUE))
+
+          # Append one row per occurrence
           for (i in seq_along(expressions)) {
             result <- rbind(result, data.frame(
               Gene_ID = gene,
@@ -941,7 +944,7 @@ mod_input_validation_server <- function(id, parent_session) {
             ))
           }
         }
-        
+
         write.csv(result, file, row.names = FALSE)
       }
     )
@@ -970,10 +973,12 @@ mod_input_validation_server <- function(id, parent_session) {
                 options = list(
                   scrollX = TRUE,
                   pageLength = 10,
-                  lengthMenu = list(c(10, 25, 50, -1), c('10', '25', '50', 'All')),
+                  lengthMenu = list(c(10, 25, 50), c('10', '25', '50')),
+                  dom = 'lrtip',
                   searchHighlight = TRUE,
                   search = list(regex = TRUE, caseInsensitive = TRUE)
-                ))
+                ),
+                class = 'cell-border stripe')
     })
     
     # Render duplicate genes table
@@ -1008,7 +1013,7 @@ mod_input_validation_server <- function(id, parent_session) {
       req(rv$data_processed, rv$processed_counts)
       
       # Navigate to the QC Plots tab
-      updateTabsetPanel(parent_session, "mainNav", selected = "qc_plots")
+      updateNavbarPage(parent_session, "mainNav", selected = "qc_plots")
       
       # Show notification that we're moving to QC plots
       showNotification(

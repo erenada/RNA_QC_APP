@@ -197,16 +197,22 @@ plot_pca_func <- function(pca_results, pc_x_choice, pc_y_choice, pc_z_choice = N
   # Extract PC scores
   pc_data <- as.data.frame(pca_results$pca_object$x)
   
-  # Get PC numbers
+  # Get PC numbers and clamp to available components
   pc_x_num <- as.numeric(gsub("PC", "", pc_x_choice))
   pc_y_num <- as.numeric(gsub("PC", "", pc_y_choice))
+  max_pc <- ncol(pc_data)
+  if (is.na(max_pc) || max_pc < 1) {
+    stop("No principal components available")
+  }
+  pc_x_num <- min(pc_x_num, max_pc)
+  pc_y_num <- min(pc_y_num, max_pc)
   
   # Get variance explained
   var_exp <- pca_results$var_explained
   
-  # Validate PC numbers
-  if (pc_x_num > ncol(pc_data) || pc_y_num > ncol(pc_data)) {
-    stop("Requested PC number exceeds available components")
+  # Validate PC numbers (after clamping this should not trigger)
+  if (pc_x_num < 1 || pc_y_num < 1) {
+    stop("Invalid PC selection")
   }
   
   # Create base plot data
@@ -219,18 +225,16 @@ plot_pca_func <- function(pca_results, pc_x_choice, pc_y_choice, pc_z_choice = N
   # Initialize group column
   plot_data$group <- "All Samples"
   
-  # Add group information if available and valid
+  # Add group information if available and valid, aligning strictly by sample name
   if (!is.null(color_var) && !is.null(metadata_df)) {
     if (color_var == "Sample") {
       plot_data$group <- plot_data$Sample
     } else if (color_var != "none" && color_var %in% colnames(metadata_df)) {
-      # Ensure sample names are character type
       plot_data$Sample <- as.character(plot_data$Sample)
-      # Get the color variable values, ensuring proper matching of sample names
-      matched_samples <- intersect(plot_data$Sample, rownames(metadata_df))
-      if (length(matched_samples) > 0) {
-        plot_data$group[plot_data$Sample %in% matched_samples] <- 
-          metadata_df[matched_samples, color_var]
+      # Align by rownames (samples) and allow NAs for unmatched
+      if (!is.null(rownames(metadata_df))) {
+        group_vec <- metadata_df[plot_data$Sample, color_var, drop = TRUE]
+        plot_data$group <- as.character(group_vec)
       }
     }
   }
@@ -262,8 +266,14 @@ plot_pca_func <- function(pca_results, pc_x_choice, pc_y_choice, pc_z_choice = N
       stop("Z-axis PC choice required for 3D plot")
     }
     pc_z_num <- as.numeric(gsub("PC", "", pc_z_choice))
-    if (pc_z_num > ncol(pc_data)) {
-      stop("Requested PC number for Z-axis exceeds available components")
+    pc_z_num <- min(pc_z_num, max_pc)
+    if (pc_z_num < 1) {
+      pc_z_num <- 3
+    }
+    # Ensure distinct axes; pick next available if collision
+    if (pc_z_num %in% c(pc_x_num, pc_y_num)) {
+      candidates <- setdiff(seq_len(max_pc), c(pc_x_num, pc_y_num))
+      pc_z_num <- if (length(candidates) > 0) candidates[1] else max(1, min(3, max_pc))
     }
     
     # Add PC3 to plot data
@@ -280,7 +290,7 @@ plot_pca_func <- function(pca_results, pc_x_choice, pc_y_choice, pc_z_choice = N
       layout(scene = list(
         xaxis = list(title = sprintf("PC%d (%.1f%%)", pc_x_num, var_exp[pc_x_num])),
         yaxis = list(title = sprintf("PC%d (%.1f%%)", pc_y_num, var_exp[pc_y_num])),
-        zaxis = list(title = sprintf("PC%d (%.1f%%)", pc_z_num, var_exp[pc_z_num]))
+        zaxis = list(title = sprintf("PC%d (%.1f%%)", pc_z_num, if (pc_z_num <= length(var_exp)) var_exp[pc_z_num] else NA_real_))
       )) %>%
       layout(title = "3D PCA Plot",
              showlegend = TRUE)
@@ -294,57 +304,62 @@ plot_pca_func <- function(pca_results, pc_x_choice, pc_y_choice, pc_z_choice = N
 #' @param method Correlation method
 #' @return List with correlation results
 #' @export
-calculate_correlation_func <- function(data_matrix, method = "pearson") {
+calculate_correlation_func <- function(data_matrix, method = "pearson", compute_p = TRUE) {
   # Calculate correlation matrix
   cor_matrix <- cor(data_matrix, method = method)
   
-  # Calculate p-values with appropriate handling for ties
-  n_samples <- ncol(data_matrix)
-  p_matrix <- matrix(NA, n_samples, n_samples)
+  p_matrix <- NULL
+  p_adjusted <- NULL
   
-  for(i in 1:n_samples) {
-    for(j in 1:n_samples) {
-      if(i != j) {
-        # Use try-catch to handle potential warnings and errors
-        test_result <- tryCatch({
-          if (method == "spearman") {
-            # For Spearman, use asymptotic approximation which handles ties better
-            stats::cor.test(data_matrix[,i], data_matrix[,j], 
-                          method = method, 
-                          exact = FALSE,
-                          continuity = TRUE)
-          } else {
-            # For Pearson, no need for exact test
-            stats::cor.test(data_matrix[,i], data_matrix[,j], 
-                          method = method)
-          }
-        }, warning = function(w) {
-          # Return the test anyway if there's just a warning
-          if (method == "spearman") {
-            stats::cor.test(data_matrix[,i], data_matrix[,j], 
-                          method = method, 
-                          exact = FALSE,
-                          continuity = TRUE)
-          } else {
-            stats::cor.test(data_matrix[,i], data_matrix[,j], 
-                          method = method)
-          }
-        }, error = function(e) {
-          # Return NA if there's an actual error
-          list(p.value = NA)
-        })
-        
-        p_matrix[i,j] <- test_result$p.value
+  if (isTRUE(compute_p)) {
+    # Calculate p-values with appropriate handling for ties
+    n_samples <- ncol(data_matrix)
+    p_matrix <- matrix(NA, n_samples, n_samples)
+    
+    for(i in 1:n_samples) {
+      for(j in 1:n_samples) {
+        if(i != j) {
+          # Use try-catch to handle potential warnings and errors
+          test_result <- tryCatch({
+            if (method == "spearman") {
+              # For Spearman, use asymptotic approximation which handles ties better
+              stats::cor.test(data_matrix[,i], data_matrix[,j], 
+                            method = method, 
+                            exact = FALSE,
+                            continuity = TRUE)
+            } else {
+              # For Pearson, no need for exact test
+              stats::cor.test(data_matrix[,i], data_matrix[,j], 
+                            method = method)
+            }
+          }, warning = function(w) {
+            # Return the test anyway if there's just a warning
+            if (method == "spearman") {
+              stats::cor.test(data_matrix[,i], data_matrix[,j], 
+                            method = method, 
+                            exact = FALSE,
+                            continuity = TRUE)
+            } else {
+              stats::cor.test(data_matrix[,i], data_matrix[,j], 
+                            method = method)
+            }
+          }, error = function(e) {
+            # Return NA if there's an actual error
+            list(p.value = NA)
+          })
+          
+          p_matrix[i,j] <- test_result$p.value
+        }
       }
     }
+    
+    # Adjust p-values for multiple testing
+    p_adjusted <- matrix(p.adjust(p_matrix, method = "BH"), n_samples, n_samples)
   }
-  
-  # Adjust p-values for multiple testing
-  p_adjusted <- matrix(p.adjust(p_matrix, method = "BH"), n_samples, n_samples)
   
   # Set row and column names
   rownames(cor_matrix) <- colnames(cor_matrix) <- colnames(data_matrix)
-  rownames(p_adjusted) <- colnames(p_adjusted) <- colnames(data_matrix)
+  if (!is.null(p_adjusted)) rownames(p_adjusted) <- colnames(p_adjusted) <- colnames(data_matrix)
   
   return(list(
     correlation = cor_matrix,
@@ -369,18 +384,24 @@ plot_correlation_heatmap_func <- function(cor_results, metadata_df = NULL,
                                         auto_scale_colors = TRUE) {
   
   # Debug logging
-  message("Debug - plot_correlation_heatmap_func:")
-  message("Input correlation matrix dimensions: ", paste(dim(cor_results$correlation), collapse=" x "))
-  if (!is.null(metadata_df)) {
-    message("Input metadata dimensions: ", paste(dim(metadata_df), collapse=" x "))
-    message("Annotation columns: ", paste(annotation_cols, collapse=", "))
-  } else {
-    message("No metadata provided for annotations")
+  if (isTRUE(getOption("app.debug"))) {
+    message("Debug - plot_correlation_heatmap_func:")
+    message("Input correlation matrix dimensions: ", paste(dim(cor_results$correlation), collapse=" x "))
   }
-  message("Color scheme: ", color_scheme)
-  message("Show values: ", show_values)
-  message("Show significance: ", show_significance)
-  message("Auto-scale colors: ", auto_scale_colors)
+  if (!is.null(metadata_df)) {
+    if (isTRUE(getOption("app.debug"))) {
+      message("Input metadata dimensions: ", paste(dim(metadata_df), collapse=" x "))
+      message("Annotation columns: ", paste(annotation_cols, collapse=", "))
+    }
+  } else {
+    if (isTRUE(getOption("app.debug"))) message("No metadata provided for annotations")
+  }
+  if (isTRUE(getOption("app.debug"))) {
+    message("Color scheme: ", color_scheme)
+    message("Show values: ", show_values)
+    message("Show significance: ", show_significance)
+    message("Auto-scale colors: ", auto_scale_colors)
+  }
   
   # Validate correlation results
   if (is.null(cor_results) || is.null(cor_results$correlation)) {
@@ -515,28 +536,42 @@ plot_correlation_heatmap_func <- function(cor_results, metadata_df = NULL,
     colnames(display_numbers) <- colnames(cor_matrix)
   }
   
-  # Create heatmap using corrplot (simplified - no fallbacks needed)
+  # Create heatmap using corrplot with robust fallbacks for degenerate inputs
   result <- tryCatch({
     message("Using corrplot for correlation heatmap rendering...")
     
-    # Determine appropriate color range based on correlation values
-    cor_range <- range(cor_matrix[upper.tri(cor_matrix)], na.rm = TRUE)
-    message("Correlation range: ", sprintf("%.3f to %.3f", cor_range[1], cor_range[2]))
-    message("Range span: ", sprintf("%.3f", cor_range[2] - cor_range[1]))
-    message("Auto-scale colors setting: ", auto_scale_colors)
+    # Determine appropriate color range based on correlation values (upper triangle only)
+    upper_vals <- cor_matrix[upper.tri(cor_matrix)]
+    finite_upper_vals <- upper_vals[is.finite(upper_vals) & !is.na(upper_vals)]
+    if (length(finite_upper_vals) == 0) {
+      # Fallback: no valid off-diagonal values (e.g., too few samples or all NAs)
+      message("No finite off-diagonal correlations; using safe defaults")
+      cor_range <- c(-1, 1)
+    } else {
+      cor_range <- range(finite_upper_vals, na.rm = TRUE)
+    }
+    if (isTRUE(getOption("app.debug"))) {
+      message("Correlation range: ", sprintf("%.3f to %.3f", cor_range[1], cor_range[2]))
+      message("Range span: ", sprintf("%.3f", cor_range[2] - cor_range[1]))
+      message("Auto-scale colors setting: ", auto_scale_colors)
+    }
     
     # Create a display matrix for better visualization of high correlations
     display_matrix <- cor_matrix
+    # Replace non-finite values with 0 for display; keep diagonal at 1
+    display_matrix[!is.finite(display_matrix)] <- 0
+    diag(display_matrix) <- 1
     
     # Choose color scheme and scaling based on correlation values
-    if ((cor_range[1] > 0.8 || (cor_range[1] > 0.7 && (cor_range[2] - cor_range[1]) < 0.3)) && auto_scale_colors) {
+    range_span <- cor_range[2] - cor_range[1]
+    if (isTRUE(auto_scale_colors) && length(finite_upper_vals) > 0 &&
+        (cor_range[1] > 0.8 || (cor_range[1] > 0.7 && range_span < 0.3)) &&
+        is.finite(range_span) && range_span > 0) {
       # High correlations with small range - rescale for better visualization
       message("Using high-correlation rescaling for better visualization")
       message("Condition met: min_cor > 0.8 OR (min_cor > 0.7 AND range < 0.3)")
       
       # Calculate an appropriate rescaling range based on the actual data
-      range_span <- cor_range[2] - cor_range[1]
-      
       # If the range is very small (< 0.1), expand it more aggressively
       if (range_span < 0.1) {
         # Expand the range to show more color variation while keeping it realistic
@@ -587,18 +622,13 @@ plot_correlation_heatmap_func <- function(cor_results, metadata_df = NULL,
         is.corr = FALSE  # Set to FALSE since we're using rescaled values
       )
       
-      # Add a note about the actual correlation values using base graphics
-      mtext("Note: Colors enhanced for high correlation visualization", 
-            side = 1, line = 3, cex = 0.8, col = "gray50")
-      mtext(sprintf("Actual range: %.4f to %.4f | Display range: %.3f to %.3f", 
-            cor_range[1], cor_range[2], cor_min_rescaled, cor_max_rescaled), 
-            side = 1, line = 4, cex = 0.8, col = "gray50")
+      # Remove in-plot notes to keep the visualization clean per UX guidance
       
     } else {
       # Standard range - use original matrix
       message("Using standard correlation visualization")
       message("Condition NOT met for high correlation scaling")
-      display_matrix <- cor_matrix
+      display_matrix <- display_matrix
       col_scheme <- colors
       message("Using color scheme: ", color_scheme)
       message("Using standard color limits: -1 to 1")
@@ -992,20 +1022,4 @@ save_heatmap_plot_func <- function(cor_results, file, metadata_df, annotation_co
 #' @param pca_results PCA results
 #' @param output_file Output file
 #' @export
-generate_qc_report_func <- function(raw_counts, processed_data, metadata, 
-                                  normality_results, pca_results, output_file) {
-  # This function would generate an HTML report using rmarkdown
-  # Implementation would depend on specific reporting requirements
-  # For now, we'll create a basic report template
-  rmarkdown::render(
-    system.file("rmd", "qc_report_template.Rmd", package = "RNAProcessing"),
-    output_file = output_file,
-    params = list(
-      raw_counts = raw_counts,
-      processed_data = processed_data,
-      metadata = metadata,
-      normality_results = normality_results,
-      pca_results = pca_results
-    )
-  )
-} 
+# Report generation feature removed

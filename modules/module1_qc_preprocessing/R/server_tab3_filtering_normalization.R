@@ -11,8 +11,7 @@
 mod_filtering_normalization_server <- function(id, shared_data) {
   moduleServer(id, function(input, output, session) {
     
-    # Source utility functions first
-    source("modules/module1_qc_preprocessing/R/utils_normalization.R")
+    # Utility functions are sourced in app.R
     
     # Set up DESeq2 class definitions
     tryCatch({
@@ -391,9 +390,11 @@ mod_filtering_normalization_server <- function(id, shared_data) {
             head(result$filtered_matrix, n = 10),
             options = list(
               scrollX = TRUE,
-              dom = 't',
-              pageLength = 10
-            )
+              pageLength = 10,
+              lengthMenu = list(c(10, 25, 50), c('10', '25', '50')),
+              dom = 'lrtip'
+            ),
+            class = 'cell-border stripe'
           )
         }, error = function(e) {
           NULL
@@ -762,53 +763,7 @@ mod_filtering_normalization_server <- function(id, shared_data) {
       }
     )
     
-    output$download_session_report <- downloadHandler(
-      filename = function() {
-        paste0("analysis_report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".html")
-      },
-      content = function(file) {
-        # Get current data and states
-        current_data <- get_current_data()
-        req(current_data)
-        
-        # Create report content
-        report_content <- list(
-          title = "RNA-Seq Data Analysis Report",
-          author = "Eren Ada, PhD",
-          date = format(Sys.time(), "%Y-%m-%d"),
-          data_state = data_state(),
-          filtering_params = if(!is.null(input$filter_min_samples)) {
-            list(
-              min_samples = input$filter_min_samples,
-              min_counts = input$filter_min_counts,
-              group_column = input$filter_group_column
-            )
-          } else NULL,
-          normalization_params = if(!is.null(input$norm_method_select)) {
-            list(
-              method = input$norm_method_select,
-              evaluation_results = normalization_evaluation_results()
-            )
-          } else NULL,
-          data_summary = list(
-            dimensions = dim(current_data),
-            total_counts = sum(current_data),
-            mean_counts = mean(current_data),
-            median_counts = median(current_data)
-          )
-        )
-        
-        # Generate HTML report
-        rmarkdown::render(
-          input = "modules/module1_qc_preprocessing/R/templates/analysis_report_template.Rmd",
-          output_file = file,
-          params = list(
-            report_content = report_content
-          ),
-          quiet = TRUE
-        )
-      }
-    )
+    # Report generation removed
     
     # Filtering & Normalization completion message for proceed section
     output$filtering_normalization_completion_message <- renderUI({
@@ -892,15 +847,4 @@ mod_filtering_normalization_server <- function(id, shared_data) {
 }
 
 # --- Helper Functions ---
-create_error_plot <- function(error_message) {
-  ggplot() +
-    annotate("text", x = 0.5, y = 0.5, 
-             label = error_message,
-             color = "red",
-             size = 5) +
-    theme_void() +
-    theme(
-      plot.background = element_rect(fill = "white", color = NA),
-      plot.margin = margin(20, 20, 20, 20)
-    )
-} 
+# Use shared create_error_plot from utils_plotting.R

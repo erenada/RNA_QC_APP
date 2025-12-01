@@ -3,15 +3,11 @@
 #'              including evaluation metrics and method suggestions.
 #' @author Eren Ada, PhD
 
-# Ensure essential S4 and Bioconductor base packages are loaded early
+# Ensure essential packages are loaded (assume installed by environment setup)
 suppressPackageStartupMessages({
-  if (!requireNamespace("BiocGenerics", quietly = TRUE)) install.packages("BiocGenerics")
   library(BiocGenerics)
-  if (!requireNamespace("S4Vectors", quietly = TRUE)) install.packages("S4Vectors")
   library(S4Vectors)
-  if (!requireNamespace("SummarizedExperiment", quietly = TRUE)) install.packages("SummarizedExperiment")
   library(SummarizedExperiment)
-  if (!requireNamespace("e1071", quietly = TRUE)) install.packages("e1071")
   library(e1071)
 })
 
@@ -155,10 +151,6 @@ setup_deseq2_classes <- function() {
       library(IRanges)
       library(GenomicRanges)
       library(SummarizedExperiment)
-      
-      # Fix for DESeq2 on R 4.5.0 - "superclass 'ExpData' not defined" error
-      setOldClass("ExpData")
-      
       library(DESeq2)
     })
     
@@ -271,19 +263,7 @@ normalize_quantile <- function(counts_matrix, result) {
   return(result)
 }
 
-#' @title Calculate CPM
-#' @description Calculates Counts Per Million
-#' @param raw_counts_matrix Raw counts matrix
-#' @return CPM matrix
-#' @keywords internal
-calculate_cpm <- function(raw_counts_matrix) {
-  library_sizes <- colSums2(raw_counts_matrix)
-  if (any(library_sizes == 0)) {
-    warning("Some samples have zero total counts. CPM calculation may produce NaN/Inf values.")
-  }
-  cpm_matrix <- t(t(raw_counts_matrix) / library_sizes * 1e6)
-  return(cpm_matrix)
-}
+## calculate_cpm implementation is provided in utils_filtering.R and sourced earlier
 
 #' @title Log Normalization Errors
 #' @description Logs errors that occur in normalization functions
