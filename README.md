@@ -11,11 +11,11 @@
 
 This project develops a comprehensive and modular bulk RNA-sequencing (RNA-seq) analysis tool using RShiny. The suite consists of interconnected RShiny applications, each dedicated to a specific stage of the RNA-seq analysis workflow.
 
-### Current Status: QC & Pre-processing Tool (Complete)
+### Current Status: QC & Pre-processing Tool
 
 Production-ready QC and pre-processing for bulk RNA‑seq count data. See Screenshots below for a brief tour.
 
-## Module 1: QC & Pre-processing Tool (Complete)
+## Module 1: QC & Pre-processing Tool
 
 **Status:** Complete and Production-Ready  
 **Location:** `app.R` (main application)
