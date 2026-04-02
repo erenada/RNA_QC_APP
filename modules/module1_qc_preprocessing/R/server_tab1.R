@@ -193,7 +193,8 @@ mod_input_validation_server <- function(id, parent_session) {
         counts_data <- read.delim(input$count_matrix_file$datapath,
                                 sep = counts_format$sep,
                                 header = TRUE,
-                                stringsAsFactors = FALSE)
+                                stringsAsFactors = FALSE,
+                                check.names = FALSE)
         
         # Round numeric columns in counts_data immediately after reading
         numeric_cols <- sapply(counts_data, is.numeric)
@@ -302,7 +303,8 @@ mod_input_validation_server <- function(id, parent_session) {
         rv$raw_metadata <- read.delim(input$metadata_file$datapath,
                                     sep = metadata_format$sep,
                                     header = TRUE,
-                                    stringsAsFactors = FALSE)
+                                    stringsAsFactors = FALSE,
+                                    check.names = FALSE)
         
         # Store detected formats
         rv$detected_counts_separator <- counts_format

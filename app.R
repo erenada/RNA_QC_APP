@@ -2,7 +2,7 @@
 # QC & Pre-processing Tool
 # Author: Eren Ada, PhD
 # Date: 05/29/2024
-
+library(shiny)
 # Centralized configuration and packages
 source("R/options.R")
 source("R/packages.R")
