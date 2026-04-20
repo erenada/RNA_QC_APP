@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software in your research, please cite it as below."
+title: "RNA-seq Quality Control and Pre-processing Tool"
+version: 2.0.0
+date-released: 2025-12-01
+authors:
+  - family-names: Ada
+    given-names: Eren
+    orcid: "https://orcid.org/0000-0001-9141-8282"
+abstract: >
+  An interactive R Shiny application for comprehensive bulk RNA-seq data
+  quality control and pre-processing. Provides no-code tools for count
+  matrix validation, QC visualization (PCA, correlation heatmaps, library
+  size distributions), filtering, normalization, and export of
+  publication-ready outputs. Developed at Harvard Medical School
+  Department of Immunology.
+keywords:
+  - RNA-seq
+  - quality control
+  - transcriptomics
+  - bioinformatics
+  - R Shiny
+  - normalization
+license: CC-BY-NC-SA-4.0
+repository-code: "https://github.com/erenada/RNA_QC_APP"
