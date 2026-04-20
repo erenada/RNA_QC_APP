@@ -21,5 +21,5 @@ keywords:
   - bioinformatics
   - R Shiny
   - normalization
-license: CC-BY-NC-SA-4.0
+license: MIT
 repository-code: "https://github.com/erenada/RNA_QC_APP"

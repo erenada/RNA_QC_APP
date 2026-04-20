@@ -1,6 +1,6 @@
 # Modular Bulk RNA-seq Analysis RShiny Tool Suite
 
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![R Version](https://img.shields.io/badge/R-%3E%3D4.0.0-blue.svg)](https://www.r-project.org/)
 
 **Author:** Eren Ada, PhD  
@@ -146,7 +146,13 @@ Contributions are welcome. See the [Developer Documentation](docs/developer/READ
 
 ## License
 
-This project is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Disclaimer
+
+This software is provided for research purposes only and has not been reviewed or approved by the Food and Drug Administration or any other regulatory agency. Clinical applications are neither recommended nor advised. Any use of this software is at the sole risk of the user.
+
+For questions about usage or licensing, please contact: erenada@gmail.com
 
 ## Citation
 

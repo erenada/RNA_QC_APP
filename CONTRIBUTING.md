@@ -153,7 +153,7 @@ Contributors will be acknowledged in:
 
 ## License
 
-By contributing to this project, you agree that your contributions will be licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+By contributing to this project, you agree that your contributions will be licensed under the MIT License.
 
 ---
 
